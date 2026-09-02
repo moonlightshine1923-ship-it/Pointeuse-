@@ -1,0 +1,1 @@
+python -c "import sqlite3; conn = sqlite3.connect('pointeuse.db'); conn.execute('DELETE FROM attendance;'); conn.commit(); print('Pointages effacés !')"
