@@ -30,7 +30,7 @@ from urllib.parse import parse_qs, quote, urlparse
 from zoneinfo import ZoneInfo
 
 APP_NAME = "Présence"
-APP_VERSION = "heures de travail quotidiennes et mensuelles · retards cumulés · heures en plus (03/09/2026)"
+APP_VERSION = "rappels sonores avant arrivée · pause · reprise · départ (02/09/2026)"
 DEFAULT_TZ = os.environ.get("APP_TIMEZONE", "Africa/Algiers")
 try:
     TZ = ZoneInfo(DEFAULT_TZ)
@@ -43,20 +43,97 @@ SECRET = b""
 LOGIN_ATTEMPTS: dict[str, list[float]] = {}
 ATTEMPTS_LOCK = threading.Lock()
 REPORT_LOCK = threading.Lock()
-DAILY_WORK_MINUTES = 8 * 60  # Norme : 8 h de présence par jour, pause incluse.
+DAILY_WORK_MINUTES = 7 * 60
 
 CSS = r"""
 :root{--ink:#152238;--muted:#64748b;--line:#e5eaf1;--soft:#f5f7fb;--white:#fff;--blue:#185adb;--blue2:#0d47ba;--green:#087a55;--green-bg:#e9f8f1;--red:#b42318;--red-bg:#fff0ee;--amber:#946200;--amber-bg:#fff6d8;--shadow:0 14px 34px rgba(22,34,56,.09);--radius:18px}
-*{box-sizing:border-box}html{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#f7f9fc}body{margin:0;min-height:100vh}.shell{max-width:1120px;margin:0 auto;padding:0 24px}.topbar{background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);height:72px;display:flex;align-items:center;position:sticky;top:0;z-index:10}.topbar .shell{display:flex;align-items:center;justify-content:space-between;width:100%}.brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:-.02em;color:var(--ink);text-decoration:none}.brandmark{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#2167e8,#1647ad);display:grid;place-items:center;box-shadow:0 7px 14px rgba(24,90,219,.25)}.brandmark svg{width:21px;height:21px}.navlinks{display:flex;gap:8px;align-items:center}.navlink{color:var(--muted);font-size:14px;font-weight:650;text-decoration:none;padding:9px 12px;border-radius:10px}.navlink:hover{background:var(--soft);color:var(--ink)}main{padding:40px 0 64px}.eyebrow{color:var(--blue);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:26px}.hero h1{font-size:32px;line-height:1.15;letter-spacing:-.04em;margin:7px 0 5px}.hero p{color:var(--muted);margin:0;line-height:1.55}.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}.padded{padding:26px}.grid{display:grid;gap:18px}.stats{grid-template-columns:repeat(3,1fr);margin-bottom:18px}.stat{padding:20px 22px;display:flex;align-items:center;gap:15px}.stat-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:19px}.stat-icon.blue{background:#eaf1ff;color:var(--blue)}.stat-icon.green{background:var(--green-bg);color:var(--green)}.stat-icon.red{background:var(--red-bg);color:var(--red)}.stat-label{font-size:13px;color:var(--muted);font-weight:650}.stat-value{font-size:25px;font-weight:800;line-height:1;margin-top:5px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 20px;border-bottom:1px solid var(--line)}.toolbar-left,.toolbar-right,.inline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%}th{font-size:12px;letter-spacing:.055em;text-transform:uppercase;color:var(--muted);text-align:left;padding:14px 20px;background:#fafbfd;border-bottom:1px solid var(--line)}td{padding:17px 20px;border-bottom:1px solid var(--line);font-size:14px}tr:last-child td{border-bottom:0}.weekend-row td{background:#d6dbe3}.person{font-weight:750}.subline{font-size:12px;color:var(--muted);margin-top:5px}.time{font-size:15px;font-weight:750;font-variant-numeric:tabular-nums}.dash{color:#b1bac8}.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;vertical-align:middle}.badge:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.absent{background:var(--red-bg);color:var(--red)}.present{background:var(--green-bg);color:var(--green)}.finished{background:#eef2f7;color:#526174}.weekend{background:#eef2f7;color:#526174}.holiday{background:#ffdede;color:#b42318}.leave{background:#f0ebff;color:#6941c6}.pause{background:var(--amber-bg);color:var(--amber)}.btn{appearance:none;border:0;border-radius:11px;padding:11px 15px;font:inherit;font-size:14px;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.16s ease}.btn:hover{transform:translateY(-1px)}.btn:active{transform:none}.btn-primary{background:var(--blue);color:white;box-shadow:0 7px 16px rgba(24,90,219,.22)}.btn-primary:hover{background:var(--blue2)}.btn-secondary{background:#edf2fb;color:#29415f}.btn-danger{background:var(--red-bg);color:var(--red)}.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}.btn-large{min-height:58px;padding:15px 22px;font-size:16px;border-radius:14px;width:100%}.btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}.input,.select{width:100%;border:1px solid #d8e0eb;border-radius:11px;background:white;color:var(--ink);padding:11px 12px;font:inherit;font-size:14px;outline:none}.input:focus,.select:focus{border-color:#739bef;box-shadow:0 0 0 3px rgba(24,90,219,.1)}label{display:block;font-size:13px;font-weight:750;margin-bottom:7px}.field{margin-bottom:16px}.help{font-size:12px;color:var(--muted);line-height:1.5;margin-top:7px}.form-row{display:grid;grid-template-columns:1fr 1fr auto;gap:11px;align-items:end}.section-title{font-size:18px;letter-spacing:-.02em;margin:0}.section-subtitle{color:var(--muted);font-size:13px;margin:5px 0 0}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}.lower-grid{grid-template-columns:1.5fr 1fr;margin-top:18px;align-items:start}.employee-list{display:grid;gap:8px}.employee-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:12px}.employee-meta{min-width:0}.employee-name{font-weight:750;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.device-state{font-size:12px;color:var(--muted);margin-top:3px}.row-actions{display:flex;gap:7px}.icon-btn{width:35px;height:35px;padding:0;border-radius:9px}.notice{border-radius:13px;padding:13px 15px;margin-bottom:18px;font-size:13px;font-weight:650;line-height:1.45}.notice-success{background:var(--green-bg);color:var(--green);border:1px solid #c5ebdb}.notice-error{background:var(--red-bg);color:var(--red);border:1px solid #ffd4cf}.notice-info{background:#edf4ff;color:#24519c;border:1px solid #d4e4ff}.login-shell{min-height:calc(100vh - 72px);display:grid;place-items:center;padding:35px 20px}.login-card{width:100%;max-width:420px;padding:30px}.login-card h1{font-size:26px;letter-spacing:-.035em;margin:18px 0 7px}.login-card>p{color:var(--muted);line-height:1.5;margin:0 0 24px}.terminal{max-width:620px;margin:0 auto}.clock{text-align:center;padding:34px 25px 26px}.clock-time{font-size:52px;line-height:1;font-weight:850;letter-spacing:-.055em;font-variant-numeric:tabular-nums}.clock-date{color:var(--muted);margin-top:10px;font-size:14px;text-transform:capitalize}.welcome{padding:25px;border-top:1px solid var(--line)}.welcome h1{font-size:24px;letter-spacing:-.03em;margin:0 0 6px}.welcome p{color:var(--muted);margin:0}.punch-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}.today-status{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;padding:14px;background:var(--soft);border-radius:12px}.today-times{font-size:12px;color:var(--muted);line-height:1.6;text-align:right}.empty{padding:42px 20px;text-align:center;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:15px;margin-bottom:5px}.footer-note{text-align:center;color:#8793a4;font-size:12px;margin-top:20px}.danger-zone{border-top:1px solid var(--line);margin-top:22px;padding-top:20px}.modal-note{background:var(--amber-bg);color:var(--amber);border:1px solid #f5dfa1;padding:11px 13px;border-radius:11px;font-size:12px;line-height:1.5}.date-input{width:auto;min-width:145px}.no-js{background:var(--amber-bg);padding:10px;text-align:center;font-size:13px;color:var(--amber)}.admin-layout{max-width:1460px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:238px minmax(0,1fr);gap:26px;align-items:start}.admin-content{min-width:0}.admin-sidebar{position:sticky;top:96px;align-self:start;background:linear-gradient(165deg,#14233c,#0d1728);border-radius:18px;padding:18px 12px;box-shadow:0 18px 38px rgba(15,27,47,.18);max-height:calc(100vh - 116px);overflow:auto}.sidebar-label{padding:4px 12px 13px;color:#7f94b4;font-size:10px;font-weight:850;letter-spacing:.14em;text-transform:uppercase}.side-nav{display:grid;gap:5px}.side-link{display:flex;align-items:center;gap:10px;color:#bdc9dc;text-decoration:none;font-size:13px;font-weight:700;padding:10px 11px;border-radius:11px;transition:.16s ease}.side-link:hover{background:rgba(255,255,255,.08);color:white}.side-link.active{background:#2366df;color:white;box-shadow:0 7px 16px rgba(0,0,0,.18)}.side-icon{width:25px;height:25px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.08);font-size:13px;flex:0 0 auto}.side-link.active .side-icon{background:rgba(255,255,255,.16)}.side-divider{height:1px;background:rgba(255,255,255,.1);margin:8px 9px}.side-logout{color:#f3b9b4}.section-anchor{scroll-margin-top:96px}@media(max-width:1050px){.admin-layout{grid-template-columns:1fr;padding:0 18px;gap:18px}.admin-sidebar{top:78px;z-index:8;display:flex;align-items:center;overflow-x:auto;max-height:none;padding:9px;border-radius:14px}.sidebar-label{display:none}.side-nav{display:flex;gap:5px}.side-link{white-space:nowrap;padding:8px 10px}.side-divider{width:1px;height:28px;margin:0 4px}.section-anchor{scroll-margin-top:150px}}@media(max-width:760px){.shell{padding:0 15px}.topbar{height:64px}.topbar .navlink.hide-mobile{display:none}main{padding-top:27px}.hero{align-items:flex-start;flex-direction:column}.hero h1{font-size:27px}.stats{grid-template-columns:1fr}.stat{padding:15px 17px}.lower-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.toolbar{align-items:flex-start;flex-direction:column}.toolbar-right{width:100%}.toolbar-right .btn{flex:1}.date-input{flex:1}.padded{padding:20px}.punch-grid{grid-template-columns:1fr}.clock-time{font-size:45px}th,td{padding-left:15px;padding-right:15px;min-width:132px}th:first-child,td:first-child{min-width:180px}.login-card{padding:24px}.navlinks{gap:2px}.leave-form{grid-template-columns:1fr!important}.admin-layout{padding:0 12px}.admin-sidebar{top:68px}.side-icon{display:none}.side-link{font-size:12px}}
+*{box-sizing:border-box}html{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#f7f9fc}body{margin:0;min-height:100vh}.shell{max-width:1120px;margin:0 auto;padding:0 24px}.topbar{background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);height:72px;display:flex;align-items:center;position:sticky;top:0;z-index:10}.topbar .shell{display:flex;align-items:center;justify-content:space-between;width:100%}.brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:-.02em;color:var(--ink);text-decoration:none}.brandmark{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#2167e8,#1647ad);display:grid;place-items:center;box-shadow:0 7px 14px rgba(24,90,219,.25)}.brandmark svg{width:21px;height:21px}.navlinks{display:flex;gap:8px;align-items:center}.navlink{color:var(--muted);font-size:14px;font-weight:650;text-decoration:none;padding:9px 12px;border-radius:10px}.navlink:hover{background:var(--soft);color:var(--ink)}main{padding:40px 0 64px}.eyebrow{color:var(--blue);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:26px}.hero h1{font-size:32px;line-height:1.15;letter-spacing:-.04em;margin:7px 0 5px}.hero p{color:var(--muted);margin:0;line-height:1.55}.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}.padded{padding:26px}.grid{display:grid;gap:18px}.stats{grid-template-columns:repeat(3,1fr);margin-bottom:18px}.stat{padding:20px 22px;display:flex;align-items:center;gap:15px}.stat-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:19px}.stat-icon.blue{background:#eaf1ff;color:var(--blue)}.stat-icon.green{background:var(--green-bg);color:var(--green)}.stat-icon.red{background:var(--red-bg);color:var(--red)}.stat-label{font-size:13px;color:var(--muted);font-weight:650}.stat-value{font-size:25px;font-weight:800;line-height:1;margin-top:5px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 20px;border-bottom:1px solid var(--line)}.toolbar-left,.toolbar-right,.inline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%}th{font-size:12px;letter-spacing:.055em;text-transform:uppercase;color:var(--muted);text-align:left;padding:14px 20px;background:#fafbfd;border-bottom:1px solid var(--line)}td{padding:17px 20px;border-bottom:1px solid var(--line);font-size:14px}tr:last-child td{border-bottom:0}.weekend-row td{background:#d6dbe3}.person{font-weight:750}.subline{font-size:12px;color:var(--muted);margin-top:5px}.time{font-size:15px;font-weight:750;font-variant-numeric:tabular-nums}.dash{color:#b1bac8}.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;vertical-align:middle}.badge:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.absent{background:var(--red-bg);color:var(--red)}.present{background:var(--green-bg);color:var(--green)}.finished{background:#eef2f7;color:#526174}.weekend{background:#eef2f7;color:#526174}.holiday{background:#ffdede;color:#b42318}.leave{background:#f0ebff;color:#6941c6}.pause{background:var(--amber-bg);color:var(--amber)}.btn{appearance:none;border:0;border-radius:11px;padding:11px 15px;font:inherit;font-size:14px;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.16s ease}.btn:hover{transform:translateY(-1px)}.btn:active{transform:none}.btn-primary{background:var(--blue);color:white;box-shadow:0 7px 16px rgba(24,90,219,.22)}.btn-primary:hover{background:var(--blue2)}.btn-secondary{background:#edf2fb;color:#29415f}.btn-danger{background:var(--red-bg);color:var(--red)}.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}.btn-large{min-height:58px;padding:15px 22px;font-size:16px;border-radius:14px;width:100%}.btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}.input,.select{width:100%;border:1px solid #d8e0eb;border-radius:11px;background:white;color:var(--ink);padding:11px 12px;font:inherit;font-size:14px;outline:none}.input:focus,.select:focus{border-color:#739bef;box-shadow:0 0 0 3px rgba(24,90,219,.1)}label{display:block;font-size:13px;font-weight:750;margin-bottom:7px}.field{margin-bottom:16px}.help{font-size:12px;color:var(--muted);line-height:1.5;margin-top:7px}.form-row{display:grid;grid-template-columns:1fr 1fr auto;gap:11px;align-items:end}.section-title{font-size:18px;letter-spacing:-.02em;margin:0}.section-subtitle{color:var(--muted);font-size:13px;margin:5px 0 0}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}.lower-grid{grid-template-columns:1.5fr 1fr;margin-top:18px;align-items:start}.employee-list{display:grid;gap:8px}.employee-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:12px}.employee-meta{min-width:0}.employee-name{font-weight:750;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.device-state{font-size:12px;color:var(--muted);margin-top:3px}.row-actions{display:flex;gap:7px}.icon-btn{width:35px;height:35px;padding:0;border-radius:9px}.notice{border-radius:13px;padding:13px 15px;margin-bottom:18px;font-size:13px;font-weight:650;line-height:1.45}.notice-success{background:var(--green-bg);color:var(--green);border:1px solid #c5ebdb}.notice-error{background:var(--red-bg);color:var(--red);border:1px solid #ffd4cf}.notice-info{background:#edf4ff;color:#24519c;border:1px solid #d4e4ff}.login-shell{min-height:calc(100vh - 72px);display:grid;place-items:center;padding:35px 20px}.login-card{width:100%;max-width:420px;padding:30px}.login-card h1{font-size:26px;letter-spacing:-.035em;margin:18px 0 7px}.login-card>p{color:var(--muted);line-height:1.5;margin:0 0 24px}.terminal{max-width:620px;margin:0 auto}.clock{text-align:center;padding:34px 25px 26px}.clock-time{font-size:52px;line-height:1;font-weight:850;letter-spacing:-.055em;font-variant-numeric:tabular-nums}.clock-date{color:var(--muted);margin-top:10px;font-size:14px;text-transform:capitalize}.welcome{padding:25px;border-top:1px solid var(--line)}.welcome h1{font-size:24px;letter-spacing:-.03em;margin:0 0 6px}.welcome p{color:var(--muted);margin:0}.punch-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}.today-status{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;padding:14px;background:var(--soft);border-radius:12px}.today-times{font-size:12px;color:var(--muted);line-height:1.6;text-align:right}.empty{padding:42px 20px;text-align:center;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:15px;margin-bottom:5px}.footer-note{text-align:center;color:#8793a4;font-size:12px;margin-top:20px}.danger-zone{border-top:1px solid var(--line);margin-top:22px;padding-top:20px}.modal-note{background:var(--amber-bg);color:var(--amber);border:1px solid #f5dfa1;padding:11px 13px;border-radius:11px;font-size:12px;line-height:1.5}.date-input{width:auto;min-width:145px}.delta{font-weight:800;font-variant-numeric:tabular-nums}.delta-positive{color:var(--green)}.delta-negative{color:var(--red)}.delta-zero{color:#24519c}.no-js{background:var(--amber-bg);padding:10px;text-align:center;font-size:13px;color:var(--amber)}.admin-layout{max-width:1460px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:238px minmax(0,1fr);gap:26px;align-items:start}.admin-content{min-width:0}.admin-sidebar{position:sticky;top:96px;align-self:start;background:linear-gradient(165deg,#14233c,#0d1728);border-radius:18px;padding:18px 12px;box-shadow:0 18px 38px rgba(15,27,47,.18);max-height:calc(100vh - 116px);overflow:auto}.sidebar-label{padding:4px 12px 13px;color:#7f94b4;font-size:10px;font-weight:850;letter-spacing:.14em;text-transform:uppercase}.side-nav{display:grid;gap:5px}.side-link{display:flex;align-items:center;gap:10px;color:#bdc9dc;text-decoration:none;font-size:13px;font-weight:700;padding:10px 11px;border-radius:11px;transition:.16s ease}.side-link:hover{background:rgba(255,255,255,.08);color:white}.side-link.active{background:#2366df;color:white;box-shadow:0 7px 16px rgba(0,0,0,.18)}.side-icon{width:25px;height:25px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.08);font-size:13px;flex:0 0 auto}.side-link.active .side-icon{background:rgba(255,255,255,.16)}.side-divider{height:1px;background:rgba(255,255,255,.1);margin:8px 9px}.side-logout{color:#f3b9b4}.section-anchor{scroll-margin-top:96px}@media(max-width:1050px){.admin-layout{grid-template-columns:1fr;padding:0 18px;gap:18px}.admin-sidebar{top:78px;z-index:8;display:flex;align-items:center;overflow-x:auto;max-height:none;padding:9px;border-radius:14px}.sidebar-label{display:none}.side-nav{display:flex;gap:5px}.side-link{white-space:nowrap;padding:8px 10px}.side-divider{width:1px;height:28px;margin:0 4px}.section-anchor{scroll-margin-top:150px}}@media(max-width:760px){.shell{padding:0 15px}.topbar{height:64px}.topbar .navlink.hide-mobile{display:none}main{padding-top:27px}.hero{align-items:flex-start;flex-direction:column}.hero h1{font-size:27px}.stats{grid-template-columns:1fr}.stat{padding:15px 17px}.lower-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.toolbar{align-items:flex-start;flex-direction:column}.toolbar-right{width:100%}.toolbar-right .btn{flex:1}.date-input{flex:1}.padded{padding:20px}.punch-grid{grid-template-columns:1fr}.clock-time{font-size:45px}th,td{padding-left:15px;padding-right:15px;min-width:132px}th:first-child,td:first-child{min-width:180px}.login-card{padding:24px}.navlinks{gap:2px}.leave-form{grid-template-columns:1fr!important}.admin-layout{padding:0 12px}.admin-sidebar{top:68px}.side-icon{display:none}.side-link{font-size:12px}}
+.reminder-pill{display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:9px 15px;border-radius:999px;background:var(--green-bg);color:var(--green);border:1px solid #c5ebdb;font:inherit;font-size:13px;font-weight:750;cursor:pointer;transition:.16s ease}
+.reminder-pill:hover{transform:translateY(-1px)}
+.reminder-pill.off{background:#eef2f7;color:#526174;border-color:var(--line)}
+.reminder-pill.locked{background:var(--amber-bg);color:var(--amber);border-color:#f5dfa1;cursor:not-allowed;transform:none}
+.reminder-banner{position:fixed;top:86px;left:50%;transform:translateX(-50%);z-index:60;width:min(640px,calc(100vw - 32px));background:#14233c;color:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(15,27,47,.42);padding:16px 18px;display:flex;align-items:center;gap:14px}
+.reminder-banner[hidden]{display:none}
+.rem-emoji{font-size:30px;line-height:1}
+.rem-text{min-width:0}
+.rem-text strong{display:block;font-size:17px;letter-spacing:-.01em}
+.rem-sub{display:block;font-size:13px;color:#bdc9dc;margin-top:4px;line-height:1.4}
+.rem-close{margin-left:auto;flex:0 0 auto;border:0;border-radius:10px;background:#2366df;color:#fff;font:inherit;font-size:13px;font-weight:800;padding:9px 14px;cursor:pointer}
+.rem-close:hover{background:#1d58c4}
 """
 
 LOGO = """<span class="brandmark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 6v6l4 2" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="8" stroke="white" stroke-width="2.2"/></svg></span>"""
 
 
-# Page employé : horloge en direct (les rappels sonores ont été retirés).
-EMPLOYEE_JS = r"""
-function __tickClock(){const d=new Date(),c=document.getElementById('clock');if(c)c.textContent=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
-__tickClock();setInterval(__tickClock,1000);
+# Moteur audio partagé : sonnerie Web Audio (aucun fichier externe) + voix française.
+AUDIO_JS = r"""
+let __audioCtx=null;
+function __unlockAudio(){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;if(!__audioCtx){try{__audioCtx=new AC()}catch(e){return null}}if(__audioCtx&&__audioCtx.state==='suspended'){__audioCtx.resume().catch(function(){})}return __audioCtx}
+function __chime(){const ctx=__unlockAudio();if(!ctx)return false;if(ctx.state==='suspended')return false;const t0=ctx.currentTime;const notes=[[880,0],[1174.66,0.18],[1567.98,0.36],[1174.66,0.54],[1567.98,0.72],[1567.98,1.06]];notes.forEach(function(pair){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=pair[0];g.gain.setValueAtTime(0.0001,t0+pair[1]);g.gain.exponentialRampToValueAtTime(0.35,t0+pair[1]+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+pair[1]+0.5);o.connect(g);g.connect(ctx.destination);o.start(t0+pair[1]);o.stop(t0+pair[1]+0.55)});return true}
+function __speak(text){try{if(!('speechSynthesis' in window))return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='fr-FR';u.rate=1;const v=window.speechSynthesis.getVoices().find(function(v){return v.lang&&v.lang.toLowerCase().indexOf('fr')===0});if(v)u.voice=v;window.speechSynthesis.speak(u)}catch(e){}}
+"""
+
+# Page employé : vérification horaire + bannière + bouton cloche. __REM__ est remplacé par la config du jour.
+REMINDER_JS = r"""
+const REM=__REM__;
+const DOC_TITLE=document.title;
+const pill=document.getElementById('reminder-pill');
+const pillState=document.getElementById('reminder-state');
+const banner=document.getElementById('reminder-banner');
+const remTitle=document.getElementById('reminder-title');
+const remSub=document.getElementById('reminder-sub');
+const remClose=document.getElementById('reminder-close');
+let userOn=true;
+try{userOn=localStorage.getItem('presence_reminders')!=='0'}catch(e){}
+function renderPill(){
+  if(!pill||!pillState)return;
+  pill.classList.remove('off','locked');
+  if(!REM.enabled){pill.classList.add('locked');pillState.textContent='Rappels sonores désactivés par le responsable';pill.disabled=true;return}
+  if(!REM.active){pill.classList.add('off');pillState.textContent="Pas de rappels aujourd\u2019hui \u00b7 "+REM.reason;pill.disabled=true;return}
+  if(!userOn){pill.classList.add('off');pillState.textContent='Rappels sonores coupés \u00b7 cliquez pour réactiver';return}
+  pillState.textContent='Rappels sonores activés';
+}
+if(pill&&REM.enabled&&REM.active){
+  pill.title='Cliquez pour activer ou couper le son des rappels';
+  pill.addEventListener('click',function(){
+    userOn=!userOn;
+    try{localStorage.setItem('presence_reminders',userOn?'1':'0')}catch(e){}
+    if(userOn)__unlockAudio();
+    renderPill();
+  });
+}
+renderPill();
+let fired={date:REM.date,minutes:[]};
+try{const saved=JSON.parse(sessionStorage.getItem('presence_fired')||'null');if(saved&&Array.isArray(saved.minutes))fired={date:saved.date||'',minutes:saved.minutes}}catch(e){}
+if(fired.date!==REM.date)fired={date:REM.date,minutes:[]};
+function markFired(m){fired.minutes.push(m);try{sessionStorage.setItem('presence_fired',JSON.stringify(fired))}catch(e){}}
+let bannerTimer=null;
+function fire(item){
+  const audioOk=__chime();
+  __speak(item.speech);
+  remTitle.textContent=item.label;
+  remSub.textContent='Pensez à pointer sur ce PC.'+(audioOk?'':' \u2014 Cliquez sur la cloche pour réactiver le son.');
+  banner.hidden=false;
+  document.title='\ud83d\udd14 '+item.label+' \u00b7 Présence';
+  if(bannerTimer)clearTimeout(bannerTimer);
+  bannerTimer=setTimeout(function(){banner.hidden=true;document.title=DOC_TITLE},90000);
+}
+if(remClose)remClose.addEventListener('click',function(){if(bannerTimer)clearTimeout(bannerTimer);banner.hidden=true;document.title=DOC_TITLE});
+function tick(){
+  const d=new Date();
+  const clock=document.getElementById('clock');
+  if(clock)clock.textContent=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(REM.enabled&&userOn&&REM.active){
+    const mins=d.getHours()*60+d.getMinutes();
+    for(const item of REM.items){
+      if(fired.minutes.indexOf(item.minute)===-1&&mins>=item.minute&&mins<item.minute+2){fire(item);markFired(item.minute);break}
+    }
+  }
+}
+tick();
+setInterval(tick,1000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)tick()});
+['pointerdown','keydown'].forEach(function(ev){document.addEventListener(ev,__unlockAudio)});
 """
 
 
@@ -164,6 +241,9 @@ def init_db(demo: bool = False) -> None:
             ("work_break_start_time", "12:00"),
             ("work_break_end_time", "13:00"),
             ("work_departure_time", "16:30"),
+            ("reminders_enabled", "1"),
+            ("reminder_minutes_before", "5"),
+            ("reminders_skip_holidays", "0"),
         ):
             conn.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (setting_key, setting_value))
         if demo and conn.execute("SELECT COUNT(*) FROM employees").fetchone()[0] == 0:
@@ -287,68 +367,6 @@ def fmt_time(value: str | None) -> str | None:
         return value[11:16] if len(value) >= 16 else value
 
 
-def time_minutes(value: str | None) -> int | None:
-    """Minutes depuis minuit d'un pointage (ISO ou 'HH:MM'). Retourne None si invalide."""
-    if not value:
-        return None
-    match = re.match(r"(\d{1,2}):(\d{2})", value.strip())
-    if match:
-        return int(match.group(1)) * 60 + int(match.group(2))
-    try:
-        dt = datetime.fromisoformat(value)
-        return dt.hour * 60 + dt.minute
-    except (ValueError, TypeError):
-        return None
-
-
-def worked_minutes(arrival: str | None, departure: str | None) -> int | None:
-    """Durée de présence (arrivée → départ), pause comprise.
-    Norme de 8 h par jour, pause incluse : on compte l'intervalle arrivée→départ.
-    Retourne None tant que le départ n'est pas pointé.
-    """
-    if not arrival or not departure:
-        return None
-    try:
-        return max(0, int((datetime.fromisoformat(departure) - datetime.fromisoformat(arrival)).total_seconds() // 60))
-    except (ValueError, TypeError):
-        return None
-
-
-def lateness_minutes(arrival: str | None, scheduled: str | None) -> int:
-    """Retard d'arrivée en minutes (0 si à l'heure ou en avance)."""
-    if not arrival or not scheduled:
-        return 0
-    actual = time_minutes(arrival)
-    target = time_minutes(scheduled)
-    if actual is None or target is None:
-        return 0
-    return max(0, actual - target)
-
-
-def hhmm(minutes: int | None) -> str:
-    """Formate des minutes en 'XhYY' (ex : 450 → '7h30')."""
-    minutes = int(minutes or 0)
-    return f"{minutes // 60}h{minutes % 60:02d}"
-
-
-def overtime_minutes(arrival: str | None, departure: str | None) -> int | None:
-    """Heures EN PLUS par rapport à la norme de 8 h/jour.
-    Retourne None tant que le départ n'est pas pointé, sinon le nombre de minutes
-    au-delà de la norme (0 si l'employé reste dans les 8 h).
-    """
-    worked = worked_minutes(arrival, departure)
-    if worked is None:
-        return None
-    return max(0, worked - DAILY_WORK_MINUTES)
-
-
-def plus_hhmm(minutes: int | None) -> str:
-    """Formate l'excédent en '+XhYY' (ex : 60 → '+1h00'). Vide si nul ou nul/0."""
-    if minutes is None or minutes <= 0:
-        return ""
-    return "+" + hhmm(minutes)
-
-
 def french_date(value: str) -> str:
     names = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
     months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
@@ -408,6 +426,88 @@ VALID_TIME = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 
 def valid_time(value: str | None) -> bool:
     return bool(value and VALID_TIME.fullmatch(value))
+
+
+def time_to_minutes(value: str | None) -> int | None:
+    if not valid_time(value):
+        return None
+    hours, minutes = (int(part) for part in value.split(":"))
+    return hours * 60 + minutes
+
+
+def arrival_gap(arrival_at: str | None, scheduled_arrival: str | None) -> tuple[str, str]:
+    """Retourne l'écart d'arrivée (+ en avance, - en retard) et son style."""
+    if not arrival_at:
+        return "", ""
+    target = time_to_minutes(scheduled_arrival)
+    if target is None:
+        return "", ""
+    try:
+        stamp = datetime.fromisoformat(arrival_at)
+    except ValueError:
+        return "", ""
+    actual = stamp.hour * 60 + stamp.minute
+    delta = target - actual
+    if delta > 0:
+        return f"+{delta // 60:02d}:{delta % 60:02d}", "positive"
+    if delta < 0:
+        delta = abs(delta)
+        return f"-{delta // 60:02d}:{delta % 60:02d}", "negative"
+    return "À l'heure", "zero"
+
+
+FRENCH_NUMBERS = {1: "une", 2: "deux", 3: "trois", 4: "quatre", 5: "cinq", 6: "six", 7: "sept", 8: "huit", 9: "neuf", 10: "dix"}
+
+
+def french_amount(n: int) -> str:
+    return FRENCH_NUMBERS.get(n, str(n))
+
+
+def reminder_items() -> list[dict]:
+    """Heures de sonnerie (heure cible - avance) avec libellés pour la page employé."""
+    try:
+        advance = int(get_setting("reminder_minutes_before", "5"))
+    except ValueError:
+        advance = 5
+    advance = min(max(advance, 1), 30)
+    plural = "" if advance == 1 else "s"
+    specs = (
+        ("work_arrival_time", "08:30", "Arrivée", "l’arrivée"),
+        ("work_break_start_time", "12:00", "Pause", "la pause"),
+        ("work_break_end_time", "13:00", "Reprise", "la reprise"),
+        ("work_departure_time", "16:30", "Départ", "le départ"),
+    )
+    items = []
+    for setting_key, default, title, noun in specs:
+        target = get_setting(setting_key, default)
+        if not valid_time(target):
+            continue
+        hours, minutes = (int(part) for part in target.split(":"))
+        total = (hours * 60 + minutes - advance) % (24 * 60)
+        items.append({
+            "time": f"{total // 60:02d}:{total % 60:02d}",
+            "minute": total,
+            "label": f"{title} dans {french_amount(advance)} minute{plural}",
+            "speech": f"Rappel : {noun} dans {french_amount(advance)} minute{plural}.",
+        })
+    return items
+
+
+def reminder_payload() -> dict:
+    """État des rappels pour la page employé : activés uniquement du lundi au jeudi."""
+    enabled = get_setting("reminders_enabled", "1") == "1"
+    day_iso = now_local().date().isoformat()
+    holiday, weekend = day_context(day_iso)
+    skip_holidays = get_setting("reminders_skip_holidays", "0") == "1"
+    if not enabled:
+        reason, active = "désactivés par le responsable", False
+    elif weekend:
+        reason, active = "week-end", False
+    elif holiday and skip_holidays:
+        reason, active = "jour férié", False
+    else:
+        reason, active = "", True
+    return {"enabled": enabled, "active": active, "date": day_iso, "reason": reason, "items": reminder_items() if active else []}
 
 
 def status_info(arrival: str | None, departure: str | None, holiday: str | None = None, weekend: bool = False, leave: str | None = None, break_start: str | None = None, break_end: str | None = None) -> tuple[str, str]:
@@ -510,6 +610,7 @@ def report_filename(start: date, end: date, provisional: bool = False) -> str:
 
 
 def report_dataset(start: date, end: date) -> list[dict]:
+    scheduled_arrival = get_setting("work_arrival_time", "08:30")
     with db() as conn:
         employees = conn.execute(
             """SELECT * FROM employees e
@@ -541,12 +642,10 @@ def report_dataset(start: date, end: date) -> list[dict]:
             leave_map[(leave["employee_id"], leave_day.isoformat())] = leave["label"]
     result = []
     today = now_local().date()
-    scheduled_arrival = get_setting("work_arrival_time", "08:30")
     for employee in employees:
         details = []
         employee_start = datetime.strptime(employee["start_date"] or employee["created_at"][:10], "%Y-%m-%d").date()
-        totals = {"present": 0, "absent": 0, "weekend": 0, "holiday": 0, "leave": 0, "blank": 0,
-                  "minutes": 0, "absence_minutes": 0, "worked_minutes": 0, "lateness_minutes": 0, "overtime_minutes": 0}
+        totals = {"present": 0, "absent": 0, "weekend": 0, "holiday": 0, "leave": 0, "blank": 0, "minutes": 0, "absence_minutes": 0}
         for d in date_range(start, end):
             iso = d.isoformat()
             row = attendance_map.get((employee["id"], iso))
@@ -554,22 +653,17 @@ def report_dataset(start: date, end: date) -> list[dict]:
             break_start = row["break_start_at"] if row else None
             break_end = row["break_end_at"] if row else None
             departure = row["departure_at"] if row else None
-            worked = None
-            lateness = 0
-            overtime = None
             if arrival:
                 status = "Présent"
                 totals["present"] += 1
-                worked = worked_minutes(arrival, departure)
-                lateness = lateness_minutes(arrival, scheduled_arrival)
-                overtime = overtime_minutes(arrival, departure)
-                if worked is not None:
-                    # Norme de 8 h/jour, pause comprise : on compte l'intervalle arrivée→départ.
-                    totals["worked_minutes"] += worked
-                    totals["minutes"] += worked
-                if overtime is not None:
-                    totals["overtime_minutes"] += overtime
-                totals["lateness_minutes"] += lateness
+                if departure:
+                    try:
+                        worked = int((datetime.fromisoformat(departure) - datetime.fromisoformat(arrival)).total_seconds() // 60)
+                        if break_start and break_end:
+                            worked -= max(0, int((datetime.fromisoformat(break_end) - datetime.fromisoformat(break_start)).total_seconds() // 60))
+                        totals["minutes"] += max(0, worked)
+                    except ValueError:
+                        pass
             elif d < employee_start:
                 status = ""
                 totals["blank"] += 1
@@ -594,8 +688,9 @@ def report_dataset(start: date, end: date) -> list[dict]:
                 totals["absent"] += 1
                 totals["absence_minutes"] += DAILY_WORK_MINUTES
             blank = not status
-            details.append({"date": d, "arrival": "" if blank else (fmt_time(arrival) or "—"), "break_start": "" if blank else (fmt_time(break_start) or "—"), "break_end": "" if blank else (fmt_time(break_end) or "—"), "departure": "" if blank else (fmt_time(departure) or "—"), "status": status, "worked": worked, "lateness": lateness, "overtime": overtime})
-        result.append({"name": full_name(employee), "start_date": employee_start, "scheduled_arrival": scheduled_arrival, "totals": totals, "details": details})
+            gap_value, gap_class = arrival_gap(arrival, scheduled_arrival)
+            details.append({"date": d, "arrival": "" if blank else (fmt_time(arrival) or "—"), "break_start": "" if blank else (fmt_time(break_start) or "—"), "break_end": "" if blank else (fmt_time(break_end) or "—"), "departure": "" if blank else (fmt_time(departure) or "—"), "gap": "" if blank else (gap_value or "—"), "gap_class": gap_class, "status": status})
+        result.append({"name": full_name(employee), "start_date": employee_start, "totals": totals, "details": details})
     return result
 
 
@@ -608,11 +703,12 @@ def make_report_pdf(start: date, end: date) -> bytes:
         p.text(40, 808, "Rapport mensuel de présence", 19, True, (1, 1, 1))
         p.text(40, 787, f"Du {short_french_date(start)} au {short_french_date(end)} · Début employé : {short_french_date(employee['start_date'])}", 10, color=(0.90, 0.94, 1))
 
-        # Les heures de pause, de reprise, la sortie, le total d'heures et l'excédent de la journée sont affichés.
+        # Les heures de pause et de reprise sont affichées avec les pointages,
+        # ainsi qu'une colonne d'avance/retard calculée sur l'heure d'arrivée prévue.
         p.rect(36, 728, 523, 23, (0.94, 0.96, 0.99))
-        headers = [(40, "Nom et prénom"), (125, "Date"), (180, "Arrivée"), (228, "Pause"), (278, "Reprise"), (330, "Sortie"), (395, "Heures"), (468, "En plus")]
+        headers = [(40, "Nom et prénom"), (148, "Date"), (224, "Arrivée"), (286, "Pause"), (348, "Reprise"), (414, "Sortie"), (474, "Av./retard")]
         for x, label in headers:
-            p.text(x, 736, label, 8, True, (0.30, 0.37, 0.47))
+            p.text(x, 736, label, 7.2, True, (0.30, 0.37, 0.47))
 
         y = 712
         for detail in employee["details"]:
@@ -623,6 +719,15 @@ def make_report_pdf(start: date, end: date) -> bytes:
             break_start = "" if detail["break_start"] == "—" else detail["break_start"]
             break_end = "" if detail["break_end"] == "—" else detail["break_end"]
             departure = "" if detail["departure"] == "—" else detail["departure"]
+            gap = detail.get("gap", "")
+            gap_class = detail.get("gap_class", "")
+            gap_color = (0.10, 0.15, 0.23)
+            if gap_class == "positive":
+                gap_color = (0.03, 0.48, 0.33)
+            elif gap_class == "negative":
+                gap_color = (0.70, 0.14, 0.10)
+            elif gap_class == "zero":
+                gap_color = (0.14, 0.32, 0.61)
             # Nom du jour férié tel qu’il a été saisi (ex : Mawlid Ennabawi).
             holiday_name = detail["status"].split(" - ", 1)[1].strip() if is_holiday and " - " in detail["status"] else ""
             if is_weekend:
@@ -630,51 +735,33 @@ def make_report_pdf(start: date, end: date) -> bytes:
             if is_holiday:
                 # Le rouge clair du jour férié passe devant le gris du week-end.
                 p.rect(36, y - 5, 523, 16, (1.00, 0.88, 0.88))
-                arrival, break_start, break_end, departure = "JOUR FÉRIÉ", "", "", ""
+                arrival, break_start, break_end, departure, gap = "JOUR FÉRIÉ", "", "", "", ""
             if is_leave:
                 # Le violet du congé reste prioritaire sur le gris du week-end.
                 p.rect(36, y - 5, 523, 16, (0.96, 0.94, 1.00))
-                arrival, break_start, break_end, departure = "CONGÉ", "", "", ""
+                arrival, break_start, break_end, departure, gap = "CONGÉ", "", "", "", ""
             holiday_color = (0.41, 0.25, 0.78) if is_leave else (0.70, 0.14, 0.10) if is_holiday else (0.10, 0.15, 0.23)
-            # Heures travaillées du jour (pause comprise) ; « — » si la journée est en cours.
-            if detail["worked"] is not None:
-                worked_cell = hhmm(detail["worked"])
-            else:
-                worked_cell = "—" if detail["status"] == "Présent" else ""
-            # Excédent au-delà de 8 h (heures supplémentaires) ; « — » si la journée est en cours.
-            if detail["overtime"] is not None:
-                overtime_cell = plus_hhmm(detail["overtime"])
-            else:
-                overtime_cell = "—" if detail["status"] == "Présent" else ""
-            p.text(40, y, employee["name"][:23], 7.2, True)
-            p.text(125, y, detail["date"].strftime("%d/%m/%Y"), 7.2)
-            p.text(185, y, arrival, 7.5, is_leave or is_holiday, holiday_color)
+            p.text(40, y, employee["name"][:17], 7.0, True)
+            p.text(148, y, detail["date"].strftime("%d/%m/%Y"), 7.0)
+            p.text(228, y, arrival, 7.1, is_leave or is_holiday, holiday_color)
             # Le nom du férié est écrit en rouge sur les colonnes du milieu.
             if is_holiday:
-                shown_name = holiday_name if len(holiday_name) <= 48 else holiday_name[:48].rstrip() + "…"
-                p.text(228, y, shown_name, 7.5, True, (0.70, 0.14, 0.10))
-            p.text(228, y, break_start, 7.5)
-            p.text(278, y, break_end, 7.5)
-            p.text(330, y, departure, 7.5)
-            p.text(400, y, worked_cell, 7.5, True, (0.05, 0.32, 0.72))
-            p.text(470, y, overtime_cell, 7.5, True, (0.70, 0.14, 0.10))
+                shown_name = holiday_name if len(holiday_name) <= 22 else holiday_name[:22].rstrip() + "…"
+                p.text(286, y, shown_name, 7.0, True, (0.70, 0.14, 0.10))
+            p.text(286, y, break_start, 7.1)
+            p.text(350, y, break_end, 7.1)
+            p.text(416, y, departure, 7.1)
+            p.text(476, y, gap, 7.0, gap_class in ("positive", "negative", "zero"), gap_color)
             p.line(36, y - 6, 559, y - 6)
             y -= 18
 
-        # Récapitulatif mensuel : heures du mois, jours, retards et heures en plus.
+        # Une seule ligne de total au bas du tableau de chaque employé.
         totals = employee["totals"]
-        p.rect(36, y - 64, 523, 68, (0.93, 0.96, 1.00))
-        p.text(46, y - 50, "TOTAL", 10, True, (0.05, 0.32, 0.72))
-        p.text(130, y - 50, f"Journées travaillées : {totals['present']}", 9, True, (0.05, 0.32, 0.72))
-        p.text(330, y - 50, f"Jours d'absence : {totals['absent']}", 9, True, (0.70, 0.14, 0.10))
-        p.text(46, y - 30, f"Heures travaillées du mois : {hhmm(totals['worked_minutes'])}", 9, True, (0.05, 0.32, 0.72))
-        p.text(240, y - 30, f"Heures en plus du mois : {plus_hhmm(totals['overtime_minutes']) or hhmm(totals['overtime_minutes'])}", 9, True, (0.70, 0.14, 0.10))
-        p.text(400, y - 30, f"Retards cumulés : {hhmm(totals['lateness_minutes'])}", 9, True, (0.70, 0.14, 0.10))
-        legend1 = (f"Norme : 8 h/jour, pause comprise. Heures = arrivée→départ ; "
-                   f"« En plus » = dépassement au-delà de 8 h ; retards par rapport à {employee['scheduled_arrival']}.")
-        legend2 = "Week-ends en gris, congés en violet et jours fériés en rouge clair avec leur nom. Dates futures sans pointage vides."
-        p.text(40, 48, legend1, 7.5, color=(0.40, 0.45, 0.53))
-        p.text(40, 40, legend2, 7.5, color=(0.40, 0.45, 0.53))
+        p.rect(36, y - 34, 523, 38, (0.93, 0.96, 1.00))
+        p.text(46, y - 20, "TOTAL", 10, True, (0.05, 0.32, 0.72))
+        p.text(135, y - 20, f"Journées travaillées : {totals['present']}", 10, True, (0.05, 0.32, 0.72))
+        p.text(365, y - 20, f"Jours d'absence : {totals['absent']}", 10, True, (0.70, 0.14, 0.10))
+        p.text(40, 48, "Les week-ends sont en gris, les congés en violet et les jours fériés en rouge clair. La colonne Av./retard affiche + en vert quand l'employé est en avance et - en rouge quand il est en retard.", 7.0, color=(0.40, 0.45, 0.53))
         pages.append(p)
 
     if not pages:
@@ -869,8 +956,8 @@ class AppHandler(BaseHTTPRequestHandler):
             self.deactivate_employee(route, data)
         elif re.fullmatch(r"/admin/devices/\d+/revoke", route):
             self.revoke_device(route, data)
-        elif route == "/admin/work-hours":
-            self.save_work_hours(data)
+        elif route == "/admin/reminders":
+            self.save_reminders(data)
         elif route == "/admin/pin":
             self.change_pin(data)
         elif route == "/admin/attendance/edit":
@@ -903,8 +990,8 @@ class AppHandler(BaseHTTPRequestHandler):
         msg = message_box(query.get("type"), query.get("message"))
         context_notice = f'<div class="notice notice-info">Aujourd’hui est un jour férié : {html.escape(holiday)}. Le pointage reste possible si vous travaillez.</div>' if holiday else ('<div class="notice notice-info">Aujourd’hui est un jour de week-end. Le pointage reste possible si vous travaillez.</div>' if weekend else (f'<div class="notice notice-info">Un congé est enregistré aujourd’hui : {html.escape(leave_label)}. Le pointage reste possible si vous travaillez.</div>' if leave_label else ''))
         csrf = sign(f"punch:{employee['id']}:{date_iso}")
-        body = f"""<main><div class="shell"><div class="terminal">{msg}{context_notice}<section class="card">
-        <div class="clock"><div class="eyebrow">Poste de {html.escape(full_name(employee))}</div><div class="clock-time" id="clock">--:--:--</div><div class="clock-date">{html.escape(french_date(date_iso))}</div></div>
+        body = f"""<main><div id="reminder-banner" class="reminder-banner" hidden role="alert"><span class="rem-emoji">🔔</span><div class="rem-text"><strong id="reminder-title"></strong><span class="rem-sub" id="reminder-sub"></span></div><button type="button" class="rem-close" id="reminder-close">OK</button></div><div class="shell"><div class="terminal">{msg}{context_notice}<section class="card">
+        <div class="clock"><div class="eyebrow">Poste de {html.escape(full_name(employee))}</div><div class="clock-time" id="clock">--:--:--</div><div class="clock-date">{html.escape(french_date(date_iso))}</div><button type="button" id="reminder-pill" class="reminder-pill">🔔 <span id="reminder-state">…</span></button></div>
         <div class="welcome"><h1>Pointage employé</h1><p>Saisissez votre identité et votre code personnel avant chaque action.</p>
         <form method="post" action="/punch" autocomplete="off"><input type="hidden" name="csrf" value="{csrf}">
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:20px"><div class="field"><label for="first_name">Prénom</label><input class="input" id="first_name" name="first_name" required maxlength="60" autofocus></div><div class="field"><label for="last_name">Nom</label><input class="input" id="last_name" name="last_name" required maxlength="60"></div></div>
@@ -913,7 +1000,7 @@ class AppHandler(BaseHTTPRequestHandler):
         </form>
         <div class="today-status"><span class="badge {status_class}">{status_label}</span><div class="today-times">Arrivée : <strong>{fmt_time(arrival) or '—'}</strong><br>Pause : <strong>{fmt_time(break_start) or '—'}</strong><br>Reprise : <strong>{fmt_time(break_end) or '—'}</strong><br>Départ : <strong>{fmt_time(departure) or '—'}</strong></div></div>
         </div></section><p class="footer-note">Ce PC est attribué à {html.escape(full_name(employee))}</p></div></div></main>"""
-        scripts = EMPLOYEE_JS
+        scripts = AUDIO_JS + REMINDER_JS.replace("__REM__", json.dumps(reminder_payload(), ensure_ascii=False))
         self.send_bytes(page("Pointer", body, scripts=scripts))
 
     def setup_page(self, query: dict[str, str]) -> None:
@@ -1074,10 +1161,8 @@ class AppHandler(BaseHTTPRequestHandler):
             else:
                 label, css_class = status_info(row["arrival_at"], row["departure_at"], holiday, weekend, row["leave_label"], row["break_start_at"], row["break_end_at"])
             blank = not label
-            worked = worked_minutes(row["arrival_at"], row["departure_at"])
-            lateness = lateness_minutes(row["arrival_at"], scheduled_arrival)
-            overtime = overtime_minutes(row["arrival_at"], row["departure_at"])
-            result.append({"id": row["id"], "name": full_name(row), "arrival": "" if blank else fmt_time(row["arrival_at"]), "break_start": "" if blank else fmt_time(row["break_start_at"]), "break_end": "" if blank else fmt_time(row["break_end_at"]), "departure": "" if blank else fmt_time(row["departure_at"]), "worked": worked, "lateness": lateness, "overtime": overtime, "status": label, "status_class": css_class, "weekend": weekend})
+            gap_value, gap_class = arrival_gap(row["arrival_at"], scheduled_arrival)
+            result.append({"id": row["id"], "name": full_name(row), "arrival": "" if blank else fmt_time(row["arrival_at"]), "break_start": "" if blank else fmt_time(row["break_start_at"]), "break_end": "" if blank else fmt_time(row["break_end_at"]), "departure": "" if blank else fmt_time(row["departure_at"]), "gap": "" if blank else (gap_value or "—"), "gap_class": gap_class, "status": label, "status_class": css_class, "weekend": weekend})
         return result
 
     def admin_dashboard(self, query: dict[str, str]) -> None:
@@ -1096,39 +1181,43 @@ class AppHandler(BaseHTTPRequestHandler):
         present_count = sum(1 for r in rows if r["status"] in ("Présent", "En pause"))
         absent_count = sum(1 for r in rows if r["status"] == "Absent")
         arrived_count = sum(1 for r in rows if r["arrival"])
-        table_rows = self.render_rows(rows) or '<tr><td colspan="8"><div class="empty"><strong>Aucun employé</strong>Ajoutez votre premier employé ci-dessous.</div></td></tr>'
+        table_rows = self.render_rows(rows) or '<tr><td colspan="6"><div class="empty"><strong>Aucun employé</strong>Ajoutez votre premier employé ci-dessous.</div></td></tr>'
         employee_items = "".join(self.employee_item(r, csrf or "") for r in employees) or '<div class="empty"><strong>Équipe vide</strong>Les employés ajoutés apparaîtront ici.</div>'
         employee_options = ''.join(f'<option value="{r["id"]}">{html.escape(full_name(r))}</option>' for r in employees)
         holiday_items = ''.join(f'<div class="employee-row"><div><div class="employee-name">{html.escape(r["label"])}</div><div class="device-state">{html.escape(french_date(r["holiday_date"]).capitalize())}</div></div><form method="post" action="/admin/holidays/{r["id"]}/delete"><input type="hidden" name="csrf" value="{csrf}"><button class="btn btn-danger icon-btn" onclick="return confirm(\'Supprimer ce jour férié ?\')">×</button></form></div>' for r in holidays) or '<div class="empty"><strong>Aucun jour férié</strong>Ajoutez-les avec le formulaire.</div>'
         leave_items = ''.join(f'<div class="employee-row"><div><div class="employee-name">{html.escape(full_name(r))} · {html.escape(r["label"])}</div><div class="device-state">Début : {html.escape(r["start_date"])} · Reprise : {html.escape(r["end_date"])}</div></div><form method="post" action="/admin/leaves/{r["id"]}/delete"><input type="hidden" name="csrf" value="{csrf}"><button class="btn btn-danger icon-btn" onclick="return confirm(\'Supprimer ce congé ?\')">×</button></form></div>' for r in leaves) or '<div class="empty"><strong>Aucun congé</strong>Ajoutez une période de congé ci-dessous.</div>'
         report_items = ''.join(f'<div class="employee-row"><div><div class="employee-name">{"Aperçu provisoire" if "_provisoire" in p.stem else "Rapport final"}</div><div class="device-state">{html.escape(p.stem.replace("rapport_presence_", "").replace("_au_", " au ").replace("_provisoire", ""))}</div></div><a class="btn btn-ghost" href="/admin/reports/{quote(p.name)}">PDF</a></div>' for p in reports) or '<div class="empty"><strong>Aucun rapport</strong>Le premier sera créé automatiquement.</div>'
-        monthly_summary = report_dataset(*current_month_period())
-        summary_rows = "".join(
-            f'<tr><td><div class="person">{html.escape(e["name"])}</div></td>'
-            f'<td><span class="time">{e["totals"]["present"]}</span></td>'
-            f'<td><span class="time">{hhmm(e["totals"]["worked_minutes"])}</span></td>'
-            f'<td><span class="time">{hhmm(e["totals"]["lateness_minutes"])}</span></td>'
-            f'<td><span class="time">{plus_hhmm(e["totals"]["overtime_minutes"]) or hhmm(e["totals"]["overtime_minutes"])}</span></td></tr>'
-            for e in monthly_summary
-        ) or '<tr><td colspan="5"><div class="empty"><strong>Aucune donnée</strong>Ajoutez des pointages pour voir la synthèse.</div></td></tr>'
-        work_arrival = get_setting("work_arrival_time", "08:30")
-        work_break_start = get_setting("work_break_start_time", "12:00")
-        work_break_end = get_setting("work_break_end_time", "13:00")
-        work_departure = get_setting("work_departure_time", "16:30")
+        rem_arrival = get_setting("work_arrival_time", "08:30")
+        rem_break_start = get_setting("work_break_start_time", "12:00")
+        rem_break_end = get_setting("work_break_end_time", "13:00")
+        rem_departure = get_setting("work_departure_time", "16:30")
+        try:
+            rem_advance = int(get_setting("reminder_minutes_before", "5"))
+        except ValueError:
+            rem_advance = 5
+        rem_enabled = get_setting("reminders_enabled", "1") == "1"
+        rem_skip_holidays = get_setting("reminders_skip_holidays", "0") == "1"
+        rem_items = reminder_items()
+        if rem_enabled:
+            rem_preview_html = ("Les rappels sonneront à " + ", ".join(f"<strong>{html.escape(i['time'])}</strong>" for i in rem_items)
+                                + f" ({french_amount(rem_advance)} minute{'s' if rem_advance != 1 else ''} avant). Aucun rappel le vendredi et le samedi.")
+        else:
+            rem_preview_html = "Les rappels sonores sont actuellement <strong>désactivés</strong>. Aucune sonnerie ne retentira sur les PC employés."
         msg = message_box(query.get("type"), query.get("message"))
         start, end = latest_completed_period()
         current_start, current_end = current_month_period()
-        body = f"""<main><div class="admin-layout"><aside class="admin-sidebar" aria-label="Menu administrateur"><div class="sidebar-label">Espace administrateur</div><nav class="side-nav"><a class="side-link active" href="#dashboard"><span class="side-icon">⌂</span>Vue d’ensemble</a><a class="side-link" href="#employees"><span class="side-icon">＋</span>Ajouter un employé</a><a class="side-link" href="#leaves"><span class="side-icon">◇</span>Ajouter un congé</a><a class="side-link" href="#holidays"><span class="side-icon">☆</span>Jours fériés</a><a class="side-link" href="#work-hours"><span class="side-icon">🕒</span>Horaires de travail</a><a class="side-link" href="#reports"><span class="side-icon">▤</span>Rapports PDF</a><a class="side-link" href="#corrections"><span class="side-icon">↻</span>Correction des pointages</a><a class="side-link" href="#security"><span class="side-icon">●</span>Modifier le mot de passe</a><div class="side-divider"></div><a class="side-link side-logout" href="/admin/logout"><span class="side-icon">→</span>Déconnexion</a></nav></aside><div class="admin-content">{msg}<div id="dashboard" class="hero section-anchor"><div><div class="eyebrow">Tableau de bord</div><h1>Présences de l’équipe</h1><p id="date-label">{html.escape(french_date(day_iso).capitalize())}</p></div><div class="inline"><a class="btn btn-ghost" href="/admin/report/latest.pdf">Dernier PDF final</a><a class="btn btn-primary" href="/admin/report/current.pdf">Aperçu du mois</a></div></div>
+        body = f"""<main><div class="admin-layout"><aside class="admin-sidebar" aria-label="Menu administrateur"><div class="sidebar-label">Espace administrateur</div><nav class="side-nav"><a class="side-link active" href="#dashboard"><span class="side-icon">⌂</span>Vue d’ensemble</a><a class="side-link" href="#employees"><span class="side-icon">＋</span>Ajouter un employé</a><a class="side-link" href="#leaves"><span class="side-icon">◇</span>Ajouter un congé</a><a class="side-link" href="#holidays"><span class="side-icon">☆</span>Jours fériés</a><a class="side-link" href="#reminders"><span class="side-icon">🔔</span>Rappels sonores</a><a class="side-link" href="#reports"><span class="side-icon">▤</span>Rapports PDF</a><a class="side-link" href="#corrections"><span class="side-icon">↻</span>Correction des pointages</a><a class="side-link" href="#security"><span class="side-icon">●</span>Modifier le mot de passe</a><div class="side-divider"></div><a class="side-link side-logout" href="/admin/logout"><span class="side-icon">→</span>Déconnexion</a></nav></aside><div class="admin-content">{msg}<div id="dashboard" class="hero section-anchor"><div><div class="eyebrow">Tableau de bord</div><h1>Présences de l’équipe</h1><p id="date-label">{html.escape(french_date(day_iso).capitalize())}</p></div><div class="inline"><a class="btn btn-ghost" href="/admin/report/latest.pdf">Dernier PDF final</a><a class="btn btn-primary" href="/admin/report/current.pdf">Aperçu du mois</a></div></div>
         <section class="grid stats"><div class="card stat"><div class="stat-icon blue">👥</div><div><div class="stat-label">Effectif total</div><div class="stat-value" id="stat-total">{len(rows)}</div></div></div><div class="card stat"><div class="stat-icon green">✓</div><div><div class="stat-label">Actuellement présents</div><div class="stat-value" id="stat-present">{present_count}</div></div></div><div class="card stat"><div class="stat-icon red">!</div><div><div class="stat-label">Absents attendus</div><div class="stat-value" id="stat-absent">{absent_count}</div></div></div></section>
-        <section class="card"><div class="toolbar"><div><h2 class="section-title">Feuille de présence</h2><p class="section-subtitle"><span id="stat-arrived">{arrived_count}</span> arrivée(s) enregistrée(s)</p></div><div class="toolbar-right"><input class="input date-input" type="date" id="work-date" value="{day_iso}"><a class="btn btn-ghost" id="export-link" href="/admin/export.csv?date={day_iso}">↓ Exporter CSV</a></div></div><div class="table-wrap"><table><thead><tr><th>Nom et prénom</th><th>Arrivée</th><th>Début pause</th><th>Reprise</th><th>Départ</th><th>Heures</th><th>Retard</th><th>En plus</th></tr></thead><tbody id="attendance-body">{table_rows}</tbody></table></div></section>
-        <section class="card"><div class="toolbar"><div><h2 class="section-title">Synthèse du mois</h2><p class="section-subtitle">Heures travaillées, retards et heures en plus cumulés depuis le {short_french_date(current_start)} · norme 8 h/jour, pause comprise.</p></div><a class="btn btn-ghost" href="/admin/report/current.pdf">Aperçu PDF</a></div><div class="table-wrap"><table><thead><tr><th>Nom et prénom</th><th>Journées travaillées</th><th>Heures du mois</th><th>Retards cumulés</th><th>Heures en plus</th></tr></thead><tbody>{summary_rows}</tbody></table></div></section>
+        <section class="card"><div class="toolbar"><div><h2 class="section-title">Feuille de présence</h2><p class="section-subtitle"><span id="stat-arrived">{arrived_count}</span> arrivée(s) enregistrée(s)</p></div><div class="toolbar-right"><input class="input date-input" type="date" id="work-date" value="{day_iso}"><a class="btn btn-ghost" id="export-link" href="/admin/export.csv?date={day_iso}">↓ Exporter CSV</a></div></div><div class="table-wrap"><table><thead><tr><th>Nom et prénom</th><th>Arrivée</th><th>Début pause</th><th>Reprise</th><th>Départ</th><th>Avance / retard</th></tr></thead><tbody id="attendance-body">{table_rows}</tbody></table></div></section>
         <div class="grid lower-grid"><section id="employees" class="card padded section-anchor"><div class="section-head"><div><h2 class="section-title">Employés et PC attribués</h2><p class="section-subtitle">Définissez le PIN lors de l’ajout, puis configurez son PC.</p></div></div><form method="post" action="/admin/employees"><input type="hidden" name="csrf" value="{csrf}"><div class="grid leave-form" style="grid-template-columns:1fr 1fr 150px 150px;gap:10px"><div><label>Prénom</label><input class="input" name="first_name" required maxlength="60"></div><div><label>Nom</label><input class="input" name="last_name" required maxlength="60"></div><div><label>Date de début</label><input class="input" name="employee_start_date" type="date" value="{today_iso()}" required></div><div><label>PIN personnel</label><input class="input" name="employee_pin" type="password" inputmode="numeric" minlength="4" maxlength="20" required></div></div><button class="btn btn-primary" style="margin-top:12px">+ Ajouter l’employé</button></form><div style="height:18px"></div><div class="employee-list">{employee_items}</div>
         <div class="danger-zone"><h3 class="section-title" style="font-size:15px">Changer un code employé</h3><form class="inline" method="post" action="/admin/employee-pin" style="margin-top:12px"><input type="hidden" name="csrf" value="{csrf}"><select class="select" name="employee_id" required><option value="">Employé…</option>{employee_options}</select><input class="input" name="new_employee_pin" type="password" inputmode="numeric" minlength="4" maxlength="20" required placeholder="Nouveau PIN"><button class="btn btn-secondary">Modifier</button></form><h3 class="section-title" style="font-size:15px;margin-top:18px">Modifier une date de début</h3><form class="inline" method="post" action="/admin/employee-start" style="margin-top:12px"><input type="hidden" name="csrf" value="{csrf}"><select class="select" name="employee_id" required><option value="">Employé…</option>{employee_options}</select><input class="input" name="employee_start_date" type="date" required><button class="btn btn-secondary">Modifier</button></form><div class="help">Toutes les dates antérieures au début seront laissées vides dans le tableau mensuel.</div></div></section>
         <section id="holidays" class="card padded section-anchor"><div class="section-head"><div><h2 class="section-title">Jours fériés</h2><p class="section-subtitle">Vendredi et samedi sont déjà des week-ends.</p></div></div><form method="post" action="/admin/holidays"><input type="hidden" name="csrf" value="{csrf}"><div class="field"><label>Date</label><input class="input" name="holiday_date" type="date" required></div><div class="field"><label>Libellé</label><input class="input" name="label" maxlength="80" required placeholder="Fête nationale"></div><button class="btn btn-primary">+ Ajouter</button></form><div style="height:18px"></div><div class="employee-list">{holiday_items}</div></section></div>
-        <section id="work-hours" class="card padded section-anchor" style="margin-top:18px"><div class="section-head"><div><h2 class="section-title">Horaires de travail</h2><p class="section-subtitle">L’heure d’arrivée sert de référence pour calculer les retards ; la norme est de 8 h par jour, pause comprise.</p></div></div>
-        <form method="post" action="/admin/work-hours"><input type="hidden" name="csrf" value="{csrf}">
-        <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:12px"><div class="field" style="margin-bottom:0"><label>Heure d’arrivée</label><input class="input" name="arrival_time" type="time" step="60" required value="{work_arrival}"></div><div class="field" style="margin-bottom:0"><label>Début de pause</label><input class="input" name="break_start_time" type="time" step="60" required value="{work_break_start}"></div><div class="field" style="margin-bottom:0"><label>Reprise du travail</label><input class="input" name="break_end_time" type="time" step="60" required value="{work_break_end}"></div><div class="field" style="margin-bottom:0"><label>Heure de départ</label><input class="input" name="departure_time" type="time" step="60" required value="{work_departure}"></div></div>
-        <div class="inline" style="margin-top:6px"><button class="btn btn-primary">Enregistrer les horaires</button></div>
+        <section id="reminders" class="card padded section-anchor" style="margin-top:18px"><div class="section-head"><div><h2 class="section-title">Rappels sonores</h2><p class="section-subtitle">Une sonnerie et un message vocal retentissent sur le PC de chaque employé avant l’arrivée, la pause, la reprise et le départ.</p></div></div>
+        <form id="rem-form" method="post" action="/admin/reminders"><input type="hidden" name="csrf" value="{csrf}">
+        <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:12px"><div class="field" style="margin-bottom:0"><label>Heure d’arrivée</label><input class="input" name="arrival_time" type="time" step="60" required value="{rem_arrival}"></div><div class="field" style="margin-bottom:0"><label>Début de pause</label><input class="input" name="break_start_time" type="time" step="60" required value="{rem_break_start}"></div><div class="field" style="margin-bottom:0"><label>Reprise du travail</label><input class="input" name="break_end_time" type="time" step="60" required value="{rem_break_end}"></div><div class="field" style="margin-bottom:0"><label>Heure de départ</label><input class="input" name="departure_time" type="time" step="60" required value="{rem_departure}"></div></div>
+        <div class="grid" style="grid-template-columns:250px 1fr;gap:12px;margin-top:14px"><div class="field" style="margin-bottom:0"><label>Minutes avant</label><input class="input" name="minutes_before" type="number" min="1" max="30" step="1" required value="{rem_advance}"><div class="help">Ex. 5 = la sonnerie retentit 5 minutes avant l’heure choisie.</div></div><div style="display:flex;flex-direction:column;gap:10px;justify-content:center"><label style="display:flex;align-items:center;gap:9px;margin:0;font-weight:750"><input type="checkbox" name="reminders_enabled" value="1" style="width:17px;height:17px"{' checked' if rem_enabled else ''}>Activer les rappels sonores</label><label style="display:flex;align-items:center;gap:9px;margin:0;font-weight:750"><input type="checkbox" name="reminders_skip_holidays" value="1" style="width:17px;height:17px"{' checked' if rem_skip_holidays else ''}>Ne pas sonner les jours fériés</label></div></div>
+        <p class="help" id="reminder-preview" style="margin-top:12px">{rem_preview_html}</p>
+        <div class="inline" style="margin-top:6px"><button class="btn btn-primary">Enregistrer les rappels</button><button class="btn btn-ghost" type="button" id="test-reminder">🔔 Tester le son</button></div>
         </form></section>
         <section id="leaves" class="card padded section-anchor" style="margin-top:18px"><div class="section-head"><div><h2 class="section-title">Congés des employés</h2><p class="section-subtitle">Les journées ouvrées en congé ne sont pas comptées comme absences.</p></div></div><form method="post" action="/admin/leaves"><input type="hidden" name="csrf" value="{csrf}"><div class="grid leave-form" style="grid-template-columns:1.2fr 1fr 1fr 1.5fr;gap:10px"><div><label>Employé</label><select class="select" name="employee_id" required><option value="">Choisir…</option>{employee_options}</select></div><div><label>Du</label><input class="input" name="start_date" type="date" required></div><div><label>Date de reprise</label><input class="input" name="end_date" type="date" required><div class="help">Cette date est un jour normal de travail.</div></div><div><label>Motif</label><input class="input" name="label" maxlength="80" required placeholder="Congé annuel"></div></div><button class="btn btn-primary" style="margin-top:12px">+ Ajouter le congé</button></form><div style="height:18px"></div><div class="employee-list">{leave_items}</div></section>
         <div class="grid lower-grid"><section id="reports" class="card padded section-anchor"><div class="section-head"><div><h2 class="section-title">Rapports PDF</h2><p class="section-subtitle">Mois civil complet : 28, 29, 30 ou 31 jours selon le calendrier.</p></div></div><div class="notice notice-info">Aperçu courant : du {short_french_date(current_start)} au {short_french_date(current_end)}. Les dates avant le début d’un employé, aujourd’hui et les jours futurs restent vides. Aperçu automatique le 28, rapport final le 1er du mois suivant.</div><div class="inline"><a class="btn btn-primary" href="/admin/report/current.pdf">Télécharger l’aperçu</a><a class="btn btn-secondary" href="/admin/report/latest.pdf">Dernier rapport final</a></div><div style="height:16px"></div><div class="employee-list">{report_items}</div></section>
@@ -1137,14 +1226,39 @@ class AppHandler(BaseHTTPRequestHandler):
         scripts = r"""
 const dateInput=document.getElementById('work-date'),body=document.getElementById('attendance-body');
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function hhmm(m){m=Math.max(0,m|0);return Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');}
-function row(r){const blank=!r.status,badge=blank?'':`<div class="subline"><span class="badge ${esc(r.status_class)}">${esc(r.status)}</span></div>`;const w=(r.worked==null)?(r.arrival?'—':''):hhmm(r.worked);const l=(r.lateness>0)?hhmm(r.lateness):'';const o=(r.overtime==null)?(r.arrival?'—':''):(r.overtime>0?('+' + hhmm(r.overtime)):'');return `<tr class="${r.weekend?'weekend-row':''}"><td><div class="person">${esc(r.name)}</div>${badge}</td><td><span class="time">${blank?'':esc(r.arrival||'—')}</span></td><td><span class="time">${blank?'':esc(r.break_start||'—')}</span></td><td><span class="time">${blank?'':esc(r.break_end||'—')}</span></td><td><span class="time">${blank?'':esc(r.departure||'—')}</span></td><td><span class="time">${blank?'':esc(w)}</span></td><td><span class="time">${blank?'':esc(l)}</span></td><td><span class="time">${blank?'':esc(o)}</span></td></tr>`}
-async function refresh(push=true){const d=dateInput.value;try{const res=await fetch('/admin/data?date='+encodeURIComponent(d),{cache:'no-store'});if(res.status===401){location='/admin/login';return}const x=await res.json();body.innerHTML=x.rows.length?x.rows.map(row).join(''):'<tr><td colspan="8"><div class="empty"><strong>Aucune donnée</strong></div></td></tr>';document.getElementById('stat-total').textContent=x.stats.total;document.getElementById('stat-present').textContent=x.stats.present;document.getElementById('stat-absent').textContent=x.stats.absent;document.getElementById('stat-arrived').textContent=x.stats.arrived;document.getElementById('date-label').textContent=x.date_label;document.getElementById('export-link').href='/admin/export.csv?date='+encodeURIComponent(d);document.getElementById('correction-date').value=d;if(push)history.replaceState({},'', '/admin?date='+encodeURIComponent(d));}catch(e){console.warn(e)}}
+function row(r){const blank=!r.status,badge=blank?'':`<div class="subline"><span class="badge ${esc(r.status_class)}">${esc(r.status)}</span></div>`;const gapClass=r.gap_class?`delta delta-${esc(r.gap_class)}`:'';return `<tr class="${r.weekend?'weekend-row':''}"><td><div class="person">${esc(r.name)}</div>${badge}</td><td><span class="time">${blank?'':esc(r.arrival||'—')}</span></td><td><span class="time">${blank?'':esc(r.break_start||'—')}</span></td><td><span class="time">${blank?'':esc(r.break_end||'—')}</span></td><td><span class="time">${blank?'':esc(r.departure||'—')}</span></td><td>${blank?'':`<span class="${gapClass}">${esc(r.gap||'—')}</span>`}</td></tr>`}
+async function refresh(push=true){const d=dateInput.value;try{const res=await fetch('/admin/data?date='+encodeURIComponent(d),{cache:'no-store'});if(res.status===401){location='/admin/login';return}const x=await res.json();body.innerHTML=x.rows.length?x.rows.map(row).join(''):'<tr><td colspan="6"><div class="empty"><strong>Aucune donnée</strong></div></td></tr>';document.getElementById('stat-total').textContent=x.stats.total;document.getElementById('stat-present').textContent=x.stats.present;document.getElementById('stat-absent').textContent=x.stats.absent;document.getElementById('stat-arrived').textContent=x.stats.arrived;document.getElementById('date-label').textContent=x.date_label;document.getElementById('export-link').href='/admin/export.csv?date='+encodeURIComponent(d);document.getElementById('correction-date').value=d;if(push)history.replaceState({},'', '/admin?date='+encodeURIComponent(d));}catch(e){console.warn(e)}}
 dateInput.addEventListener('change',()=>refresh());setInterval(()=>refresh(false),15000);
 const sideLinks=[...document.querySelectorAll('.side-link[href^="#"]')];
 function activateSideLink(id){sideLinks.forEach(link=>link.classList.toggle('active',link.getAttribute('href')==='#'+id));}
 sideLinks.forEach(link=>link.addEventListener('click',()=>activateSideLink(link.getAttribute('href').slice(1))));
 if('IntersectionObserver' in window){const sections=sideLinks.map(link=>document.querySelector(link.getAttribute('href'))).filter(Boolean);const observer=new IntersectionObserver(entries=>{const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(visible)activateSideLink(visible.target.id);},{rootMargin:'-110px 0px -62% 0px',threshold:[0,.15,.4]});sections.forEach(section=>observer.observe(section));}
+""" + AUDIO_JS + r"""
+(function(){
+const testBtn=document.getElementById('test-reminder');
+if(testBtn){testBtn.addEventListener('click',function(){
+  __unlockAudio();const ok=__chime();__speak("Rappel : l’arrivée dans cinq minutes.");
+  const old=testBtn.textContent;
+  testBtn.textContent=ok?'✓ Sonnerie envoyée':'Cliquez encore : le navigateur a bloqué le son';
+  setTimeout(function(){testBtn.textContent=old},2600);
+});}
+const remForm=document.getElementById('rem-form'),previewEl=document.getElementById('reminder-preview');
+if(remForm&&previewEl){
+  function updatePreview(){
+    const m=parseInt(remForm.minutes_before.value,10)||5;
+    const labels=[['arrival_time','l’arrivée'],['break_start_time','la pause'],['break_end_time','la reprise'],['departure_time','le départ']];
+    const parts=[];
+    labels.forEach(function(pair){
+      const v=remForm[pair[0]].value;if(!v)return;
+      const p=v.split(':').map(Number);
+      const t=((p[0]*60+p[1]-m)+1440)%1440;
+      parts.push(pair[1]+' : '+String(Math.floor(t/60)).padStart(2,'0')+' h '+String(t%60).padStart(2,'0'));
+    });
+    previewEl.textContent=parts.length?('Les rappels sonneront '+parts.join(' · ')+'. Aucun rappel le vendredi et le samedi.'):'Entrez les heures pour voir l’aperçu.';
+  }
+  remForm.addEventListener('input',updatePreview);
+}
+})();
 """
         self.send_bytes(page("Tableau de bord", body, admin=True, scripts=scripts))
 
@@ -1157,15 +1271,14 @@ if('IntersectionObserver' in window){const sections=sideLinks.map(link=>document
                 break_start = html.escape(row["break_start"] or "—")
                 break_end = html.escape(row["break_end"] or "—")
                 departure = html.escape(row["departure"] or "—")
-                worked_cell = ("—" if row["arrival"] else "") if row["worked"] is None else html.escape(hhmm(row["worked"]))
-                lateness_cell = "" if (row["lateness"] or 0) <= 0 else html.escape(hhmm(row["lateness"]))
-                overtime_cell = ("—" if row["arrival"] else "") if row["overtime"] is None else html.escape(plus_hhmm(row["overtime"]))
+                gap = html.escape(row.get("gap") or "—")
+                gap_class = html.escape(row.get("gap_class") or "")
+                gap_html = f'<span class="delta delta-{gap_class}">{gap}</span>' if gap_class else gap
             else:
                 badge = ""
-                arrival = break_start = break_end = departure = ""
-                worked_cell = lateness_cell = overtime_cell = ""
+                arrival = break_start = break_end = departure = gap_html = ""
             row_class = "weekend-row" if row.get("weekend") else ""
-            rendered.append(f'<tr class="{row_class}"><td><div class="person">{html.escape(row["name"])}</div>{badge}</td><td><span class="time">{arrival}</span></td><td><span class="time">{break_start}</span></td><td><span class="time">{break_end}</span></td><td><span class="time">{departure}</span></td><td><span class="time">{worked_cell}</span></td><td><span class="time">{lateness_cell}</span></td><td><span class="time">{overtime_cell}</span></td></tr>')
+            rendered.append(f'<tr class="{row_class}"><td><div class="person">{html.escape(row["name"])}</div>{badge}</td><td><span class="time">{arrival}</span></td><td><span class="time">{break_start}</span></td><td><span class="time">{break_end}</span></td><td><span class="time">{departure}</span></td><td>{gap_html}</td></tr>')
         return "".join(rendered)
 
     def employee_item(self, row: sqlite3.Row, csrf: str) -> str:
@@ -1192,9 +1305,9 @@ if('IntersectionObserver' in window){const sections=sideLinks.map(link=>document
         output = io.StringIO()
         output.write("\ufeff")
         writer = csv.writer(output, delimiter=";")
-        writer.writerow(["Nom et prénom", "Heure d'arrivée", "Début de pause", "Reprise", "Heure de départ", "Heures travaillées", "Retard (minutes)", "Heures en plus (minutes)", "Statut", "Date"])
+        writer.writerow(["Nom et prénom", "Heure d'arrivée", "Début de pause", "Reprise", "Heure de départ", "Avance / retard", "Statut", "Date"])
         for row in rows:
-            writer.writerow([row["name"], row["arrival"] or "", row["break_start"] or "", row["break_end"] or "", row["departure"] or "", ("—" if row["worked"] is None else hhmm(row["worked"])), row["lateness"] if row["lateness"] else 0, row["overtime"] if row["overtime"] else 0, row["status"], day_iso])
+            writer.writerow([row["name"], row["arrival"] or "", row["break_start"] or "", row["break_end"] or "", row["departure"] or "", row.get("gap") or "", row["status"], day_iso])
         self.send_bytes(output.getvalue().encode(), "text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="presences-{day_iso}.csv"'})
 
     def latest_report_pdf(self) -> None:
@@ -1365,7 +1478,7 @@ if('IntersectionObserver' in window){const sections=sideLinks.map(link=>document
         with db() as conn: conn.execute("DELETE FROM devices WHERE employee_id=?", (employee_id,))
         self.redirect("/admin?type=success&message=" + quote("Le PC a été dissocié."))
 
-    def save_work_hours(self, data: dict[str, str]) -> None:
+    def save_reminders(self, data: dict[str, str]) -> None:
         ok, csrf = self.require_admin()
         if not ok: return
         if not self.verify_csrf(data, csrf):
@@ -1377,11 +1490,23 @@ if('IntersectionObserver' in window){const sections=sideLinks.map(link=>document
             if not valid_time(raw):
                 self.redirect("/admin?type=error&message=" + quote("Les heures doivent être au format HH:MM.")); return
             values[setting_key] = raw
+        try:
+            advance = int(data.get("minutes_before", "5"))
+        except ValueError:
+            advance = 5
+        if not 1 <= advance <= 30:
+            self.redirect("/admin?type=error&message=" + quote("Le rappel doit être compris entre 1 et 30 minutes avant.")); return
+        enabled = bool(data.get("reminders_enabled"))
+        skip_holidays = bool(data.get("reminders_skip_holidays"))
         with db() as conn:
             for key, value in values.items():
                 conn.execute("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
-        admin_journal("HORAIRES DE TRAVAIL MODIFIÉS · PC : " + self.client_address[0] + " · " + " ".join(values.values()))
-        self.redirect("/admin?type=success&message=" + quote("Les horaires de travail ont été enregistrés.") + "#work-hours")
+            conn.execute("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", ("reminders_enabled", "1" if enabled else "0"))
+            conn.execute("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", ("reminder_minutes_before", str(advance)))
+            conn.execute("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", ("reminders_skip_holidays", "1" if skip_holidays else "0"))
+        admin_journal("RAPPELS SONORES MODIFIÉS · PC : " + self.client_address[0] + " · " + " ".join(values.values()) + f" · {advance} min avant · activés={'oui' if enabled else 'non'}")
+        times = ", ".join(i["time"] for i in reminder_items()) if enabled else "aucun (désactivés)"
+        self.redirect("/admin?type=success&message=" + quote(f"Rappels sonores enregistrés. Ils sonneront à {times}.") + "#reminders")
 
     def change_pin(self, data: dict[str, str]) -> None:
         ok, csrf = self.require_admin()
