@@ -3,7 +3,6 @@
 
 Lancement : python app.py
 Tableau administrateur : http://localhost:8000/admin
-Code initial : 1234 (à changer depuis le tableau de bord)
 """
 
 from __future__ import annotations
@@ -31,6 +30,7 @@ from urllib.parse import parse_qs, quote, urlparse
 from zoneinfo import ZoneInfo
 
 APP_NAME = "Présence"
+APP_VERSION = "heures de travail quotidiennes et mensuelles · retards cumulés · heures en plus (03/09/2026)"
 DEFAULT_TZ = os.environ.get("APP_TIMEZONE", "Africa/Algiers")
 try:
     TZ = ZoneInfo(DEFAULT_TZ)
@@ -43,14 +43,21 @@ SECRET = b""
 LOGIN_ATTEMPTS: dict[str, list[float]] = {}
 ATTEMPTS_LOCK = threading.Lock()
 REPORT_LOCK = threading.Lock()
-DAILY_WORK_MINUTES = 7 * 60
+DAILY_WORK_MINUTES = 8 * 60  # Norme : 8 h de présence par jour, pause incluse.
 
 CSS = r"""
 :root{--ink:#152238;--muted:#64748b;--line:#e5eaf1;--soft:#f5f7fb;--white:#fff;--blue:#185adb;--blue2:#0d47ba;--green:#087a55;--green-bg:#e9f8f1;--red:#b42318;--red-bg:#fff0ee;--amber:#946200;--amber-bg:#fff6d8;--shadow:0 14px 34px rgba(22,34,56,.09);--radius:18px}
-*{box-sizing:border-box}html{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#f7f9fc}body{margin:0;min-height:100vh}.shell{max-width:1120px;margin:0 auto;padding:0 24px}.topbar{background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);height:72px;display:flex;align-items:center;position:sticky;top:0;z-index:10}.topbar .shell{display:flex;align-items:center;justify-content:space-between;width:100%}.brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:-.02em;color:var(--ink);text-decoration:none}.brandmark{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#2167e8,#1647ad);display:grid;place-items:center;box-shadow:0 7px 14px rgba(24,90,219,.25)}.brandmark svg{width:21px;height:21px}.navlinks{display:flex;gap:8px;align-items:center}.navlink{color:var(--muted);font-size:14px;font-weight:650;text-decoration:none;padding:9px 12px;border-radius:10px}.navlink:hover{background:var(--soft);color:var(--ink)}main{padding:40px 0 64px}.eyebrow{color:var(--blue);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:26px}.hero h1{font-size:32px;line-height:1.15;letter-spacing:-.04em;margin:7px 0 5px}.hero p{color:var(--muted);margin:0;line-height:1.55}.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}.padded{padding:26px}.grid{display:grid;gap:18px}.stats{grid-template-columns:repeat(3,1fr);margin-bottom:18px}.stat{padding:20px 22px;display:flex;align-items:center;gap:15px}.stat-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:19px}.stat-icon.blue{background:#eaf1ff;color:var(--blue)}.stat-icon.green{background:var(--green-bg);color:var(--green)}.stat-icon.red{background:var(--red-bg);color:var(--red)}.stat-label{font-size:13px;color:var(--muted);font-weight:650}.stat-value{font-size:25px;font-weight:800;line-height:1;margin-top:5px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 20px;border-bottom:1px solid var(--line)}.toolbar-left,.toolbar-right,.inline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%}th{font-size:12px;letter-spacing:.055em;text-transform:uppercase;color:var(--muted);text-align:left;padding:14px 20px;background:#fafbfd;border-bottom:1px solid var(--line)}td{padding:17px 20px;border-bottom:1px solid var(--line);font-size:14px}tr:last-child td{border-bottom:0}.person{font-weight:750}.subline{font-size:12px;color:var(--muted);margin-top:5px}.time{font-size:15px;font-weight:750;font-variant-numeric:tabular-nums}.dash{color:#b1bac8}.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;vertical-align:middle}.badge:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.absent{background:var(--red-bg);color:var(--red)}.present{background:var(--green-bg);color:var(--green)}.finished{background:#eef2f7;color:#526174}.weekend{background:#eef2f7;color:#526174}.holiday{background:var(--amber-bg);color:var(--amber)}.leave{background:#f0ebff;color:#6941c6}.btn{appearance:none;border:0;border-radius:11px;padding:11px 15px;font:inherit;font-size:14px;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.16s ease}.btn:hover{transform:translateY(-1px)}.btn:active{transform:none}.btn-primary{background:var(--blue);color:white;box-shadow:0 7px 16px rgba(24,90,219,.22)}.btn-primary:hover{background:var(--blue2)}.btn-secondary{background:#edf2fb;color:#29415f}.btn-danger{background:var(--red-bg);color:var(--red)}.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}.btn-large{min-height:58px;padding:15px 22px;font-size:16px;border-radius:14px;width:100%}.btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}.input,.select{width:100%;border:1px solid #d8e0eb;border-radius:11px;background:white;color:var(--ink);padding:11px 12px;font:inherit;font-size:14px;outline:none}.input:focus,.select:focus{border-color:#739bef;box-shadow:0 0 0 3px rgba(24,90,219,.1)}label{display:block;font-size:13px;font-weight:750;margin-bottom:7px}.field{margin-bottom:16px}.help{font-size:12px;color:var(--muted);line-height:1.5;margin-top:7px}.form-row{display:grid;grid-template-columns:1fr 1fr auto;gap:11px;align-items:end}.section-title{font-size:18px;letter-spacing:-.02em;margin:0}.section-subtitle{color:var(--muted);font-size:13px;margin:5px 0 0}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}.lower-grid{grid-template-columns:1.5fr 1fr;margin-top:18px;align-items:start}.employee-list{display:grid;gap:8px}.employee-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:12px}.employee-meta{min-width:0}.employee-name{font-weight:750;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.device-state{font-size:12px;color:var(--muted);margin-top:3px}.row-actions{display:flex;gap:7px}.icon-btn{width:35px;height:35px;padding:0;border-radius:9px}.notice{border-radius:13px;padding:13px 15px;margin-bottom:18px;font-size:13px;font-weight:650;line-height:1.45}.notice-success{background:var(--green-bg);color:var(--green);border:1px solid #c5ebdb}.notice-error{background:var(--red-bg);color:var(--red);border:1px solid #ffd4cf}.notice-info{background:#edf4ff;color:#24519c;border:1px solid #d4e4ff}.login-shell{min-height:calc(100vh - 72px);display:grid;place-items:center;padding:35px 20px}.login-card{width:100%;max-width:420px;padding:30px}.login-card h1{font-size:26px;letter-spacing:-.035em;margin:18px 0 7px}.login-card>p{color:var(--muted);line-height:1.5;margin:0 0 24px}.terminal{max-width:620px;margin:0 auto}.clock{text-align:center;padding:34px 25px 26px}.clock-time{font-size:52px;line-height:1;font-weight:850;letter-spacing:-.055em;font-variant-numeric:tabular-nums}.clock-date{color:var(--muted);margin-top:10px;font-size:14px;text-transform:capitalize}.welcome{padding:25px;border-top:1px solid var(--line)}.welcome h1{font-size:24px;letter-spacing:-.03em;margin:0 0 6px}.welcome p{color:var(--muted);margin:0}.punch-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}.today-status{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;padding:14px;background:var(--soft);border-radius:12px}.today-times{font-size:12px;color:var(--muted);line-height:1.6;text-align:right}.empty{padding:42px 20px;text-align:center;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:15px;margin-bottom:5px}.footer-note{text-align:center;color:#8793a4;font-size:12px;margin-top:20px}.danger-zone{border-top:1px solid var(--line);margin-top:22px;padding-top:20px}.modal-note{background:var(--amber-bg);color:var(--amber);border:1px solid #f5dfa1;padding:11px 13px;border-radius:11px;font-size:12px;line-height:1.5}.date-input{width:auto;min-width:145px}.no-js{background:var(--amber-bg);padding:10px;text-align:center;font-size:13px;color:var(--amber)}@media(max-width:760px){.shell{padding:0 15px}.topbar{height:64px}.topbar .navlink.hide-mobile{display:none}main{padding-top:27px}.hero{align-items:flex-start;flex-direction:column}.hero h1{font-size:27px}.stats{grid-template-columns:1fr}.stat{padding:15px 17px}.lower-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.toolbar{align-items:flex-start;flex-direction:column}.toolbar-right{width:100%}.toolbar-right .btn{flex:1}.date-input{flex:1}.padded{padding:20px}.punch-grid{grid-template-columns:1fr}.clock-time{font-size:45px}th,td{padding-left:15px;padding-right:15px;min-width:132px}th:first-child,td:first-child{min-width:180px}.login-card{padding:24px}.navlinks{gap:2px}.leave-form{grid-template-columns:1fr!important}}
+*{box-sizing:border-box}html{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#f7f9fc}body{margin:0;min-height:100vh}.shell{max-width:1120px;margin:0 auto;padding:0 24px}.topbar{background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);height:72px;display:flex;align-items:center;position:sticky;top:0;z-index:10}.topbar .shell{display:flex;align-items:center;justify-content:space-between;width:100%}.brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:-.02em;color:var(--ink);text-decoration:none}.brandmark{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#2167e8,#1647ad);display:grid;place-items:center;box-shadow:0 7px 14px rgba(24,90,219,.25)}.brandmark svg{width:21px;height:21px}.navlinks{display:flex;gap:8px;align-items:center}.navlink{color:var(--muted);font-size:14px;font-weight:650;text-decoration:none;padding:9px 12px;border-radius:10px}.navlink:hover{background:var(--soft);color:var(--ink)}main{padding:40px 0 64px}.eyebrow{color:var(--blue);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:26px}.hero h1{font-size:32px;line-height:1.15;letter-spacing:-.04em;margin:7px 0 5px}.hero p{color:var(--muted);margin:0;line-height:1.55}.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}.padded{padding:26px}.grid{display:grid;gap:18px}.stats{grid-template-columns:repeat(3,1fr);margin-bottom:18px}.stat{padding:20px 22px;display:flex;align-items:center;gap:15px}.stat-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:19px}.stat-icon.blue{background:#eaf1ff;color:var(--blue)}.stat-icon.green{background:var(--green-bg);color:var(--green)}.stat-icon.red{background:var(--red-bg);color:var(--red)}.stat-label{font-size:13px;color:var(--muted);font-weight:650}.stat-value{font-size:25px;font-weight:800;line-height:1;margin-top:5px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 20px;border-bottom:1px solid var(--line)}.toolbar-left,.toolbar-right,.inline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%}th{font-size:12px;letter-spacing:.055em;text-transform:uppercase;color:var(--muted);text-align:left;padding:14px 20px;background:#fafbfd;border-bottom:1px solid var(--line)}td{padding:17px 20px;border-bottom:1px solid var(--line);font-size:14px}tr:last-child td{border-bottom:0}.weekend-row td{background:#d6dbe3}.person{font-weight:750}.subline{font-size:12px;color:var(--muted);margin-top:5px}.time{font-size:15px;font-weight:750;font-variant-numeric:tabular-nums}.dash{color:#b1bac8}.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;vertical-align:middle}.badge:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.absent{background:var(--red-bg);color:var(--red)}.present{background:var(--green-bg);color:var(--green)}.finished{background:#eef2f7;color:#526174}.weekend{background:#eef2f7;color:#526174}.holiday{background:#ffdede;color:#b42318}.leave{background:#f0ebff;color:#6941c6}.pause{background:var(--amber-bg);color:var(--amber)}.btn{appearance:none;border:0;border-radius:11px;padding:11px 15px;font:inherit;font-size:14px;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.16s ease}.btn:hover{transform:translateY(-1px)}.btn:active{transform:none}.btn-primary{background:var(--blue);color:white;box-shadow:0 7px 16px rgba(24,90,219,.22)}.btn-primary:hover{background:var(--blue2)}.btn-secondary{background:#edf2fb;color:#29415f}.btn-danger{background:var(--red-bg);color:var(--red)}.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}.btn-large{min-height:58px;padding:15px 22px;font-size:16px;border-radius:14px;width:100%}.btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}.input,.select{width:100%;border:1px solid #d8e0eb;border-radius:11px;background:white;color:var(--ink);padding:11px 12px;font:inherit;font-size:14px;outline:none}.input:focus,.select:focus{border-color:#739bef;box-shadow:0 0 0 3px rgba(24,90,219,.1)}label{display:block;font-size:13px;font-weight:750;margin-bottom:7px}.field{margin-bottom:16px}.help{font-size:12px;color:var(--muted);line-height:1.5;margin-top:7px}.form-row{display:grid;grid-template-columns:1fr 1fr auto;gap:11px;align-items:end}.section-title{font-size:18px;letter-spacing:-.02em;margin:0}.section-subtitle{color:var(--muted);font-size:13px;margin:5px 0 0}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}.lower-grid{grid-template-columns:1.5fr 1fr;margin-top:18px;align-items:start}.employee-list{display:grid;gap:8px}.employee-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:12px}.employee-meta{min-width:0}.employee-name{font-weight:750;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.device-state{font-size:12px;color:var(--muted);margin-top:3px}.row-actions{display:flex;gap:7px}.icon-btn{width:35px;height:35px;padding:0;border-radius:9px}.notice{border-radius:13px;padding:13px 15px;margin-bottom:18px;font-size:13px;font-weight:650;line-height:1.45}.notice-success{background:var(--green-bg);color:var(--green);border:1px solid #c5ebdb}.notice-error{background:var(--red-bg);color:var(--red);border:1px solid #ffd4cf}.notice-info{background:#edf4ff;color:#24519c;border:1px solid #d4e4ff}.login-shell{min-height:calc(100vh - 72px);display:grid;place-items:center;padding:35px 20px}.login-card{width:100%;max-width:420px;padding:30px}.login-card h1{font-size:26px;letter-spacing:-.035em;margin:18px 0 7px}.login-card>p{color:var(--muted);line-height:1.5;margin:0 0 24px}.terminal{max-width:620px;margin:0 auto}.clock{text-align:center;padding:34px 25px 26px}.clock-time{font-size:52px;line-height:1;font-weight:850;letter-spacing:-.055em;font-variant-numeric:tabular-nums}.clock-date{color:var(--muted);margin-top:10px;font-size:14px;text-transform:capitalize}.welcome{padding:25px;border-top:1px solid var(--line)}.welcome h1{font-size:24px;letter-spacing:-.03em;margin:0 0 6px}.welcome p{color:var(--muted);margin:0}.punch-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}.today-status{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;padding:14px;background:var(--soft);border-radius:12px}.today-times{font-size:12px;color:var(--muted);line-height:1.6;text-align:right}.empty{padding:42px 20px;text-align:center;color:var(--muted)}.empty strong{display:block;color:var(--ink);font-size:15px;margin-bottom:5px}.footer-note{text-align:center;color:#8793a4;font-size:12px;margin-top:20px}.danger-zone{border-top:1px solid var(--line);margin-top:22px;padding-top:20px}.modal-note{background:var(--amber-bg);color:var(--amber);border:1px solid #f5dfa1;padding:11px 13px;border-radius:11px;font-size:12px;line-height:1.5}.date-input{width:auto;min-width:145px}.no-js{background:var(--amber-bg);padding:10px;text-align:center;font-size:13px;color:var(--amber)}.admin-layout{max-width:1460px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:238px minmax(0,1fr);gap:26px;align-items:start}.admin-content{min-width:0}.admin-sidebar{position:sticky;top:96px;align-self:start;background:linear-gradient(165deg,#14233c,#0d1728);border-radius:18px;padding:18px 12px;box-shadow:0 18px 38px rgba(15,27,47,.18);max-height:calc(100vh - 116px);overflow:auto}.sidebar-label{padding:4px 12px 13px;color:#7f94b4;font-size:10px;font-weight:850;letter-spacing:.14em;text-transform:uppercase}.side-nav{display:grid;gap:5px}.side-link{display:flex;align-items:center;gap:10px;color:#bdc9dc;text-decoration:none;font-size:13px;font-weight:700;padding:10px 11px;border-radius:11px;transition:.16s ease}.side-link:hover{background:rgba(255,255,255,.08);color:white}.side-link.active{background:#2366df;color:white;box-shadow:0 7px 16px rgba(0,0,0,.18)}.side-icon{width:25px;height:25px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.08);font-size:13px;flex:0 0 auto}.side-link.active .side-icon{background:rgba(255,255,255,.16)}.side-divider{height:1px;background:rgba(255,255,255,.1);margin:8px 9px}.side-logout{color:#f3b9b4}.section-anchor{scroll-margin-top:96px}@media(max-width:1050px){.admin-layout{grid-template-columns:1fr;padding:0 18px;gap:18px}.admin-sidebar{top:78px;z-index:8;display:flex;align-items:center;overflow-x:auto;max-height:none;padding:9px;border-radius:14px}.sidebar-label{display:none}.side-nav{display:flex;gap:5px}.side-link{white-space:nowrap;padding:8px 10px}.side-divider{width:1px;height:28px;margin:0 4px}.section-anchor{scroll-margin-top:150px}}@media(max-width:760px){.shell{padding:0 15px}.topbar{height:64px}.topbar .navlink.hide-mobile{display:none}main{padding-top:27px}.hero{align-items:flex-start;flex-direction:column}.hero h1{font-size:27px}.stats{grid-template-columns:1fr}.stat{padding:15px 17px}.lower-grid{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.toolbar{align-items:flex-start;flex-direction:column}.toolbar-right{width:100%}.toolbar-right .btn{flex:1}.date-input{flex:1}.padded{padding:20px}.punch-grid{grid-template-columns:1fr}.clock-time{font-size:45px}th,td{padding-left:15px;padding-right:15px;min-width:132px}th:first-child,td:first-child{min-width:180px}.login-card{padding:24px}.navlinks{gap:2px}.leave-form{grid-template-columns:1fr!important}.admin-layout{padding:0 12px}.admin-sidebar{top:68px}.side-icon{display:none}.side-link{font-size:12px}}
 """
 
 LOGO = """<span class="brandmark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 6v6l4 2" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="8" stroke="white" stroke-width="2.2"/></svg></span>"""
+
+
+# Page employé : horloge en direct (les rappels sonores ont été retirés).
+EMPLOYEE_JS = r"""
+function __tickClock(){const d=new Date(),c=document.getElementById('clock');if(c)c.textContent=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+__tickClock();setInterval(__tickClock,1000);
+"""
 
 
 
@@ -109,6 +116,8 @@ def init_db(demo: bool = False) -> None:
                 employee_id INTEGER NOT NULL,
                 work_date TEXT NOT NULL,
                 arrival_at TEXT,
+                break_start_at TEXT,
+                break_end_at TEXT,
                 departure_at TEXT,
                 UNIQUE(employee_id, work_date),
                 FOREIGN KEY(employee_id) REFERENCES employees(id)
@@ -140,18 +149,38 @@ def init_db(demo: bool = False) -> None:
         if "pin_hash" not in columns:
             conn.execute("ALTER TABLE employees ADD COLUMN pin_hash TEXT")
         conn.execute("UPDATE employees SET start_date=substr(created_at,1,10) WHERE start_date IS NULL OR start_date='' ")
+        attendance_columns = {r["name"] for r in conn.execute("PRAGMA table_info(attendance)")}
+        if "break_start_at" not in attendance_columns:
+            conn.execute("ALTER TABLE attendance ADD COLUMN break_start_at TEXT")
+        if "break_end_at" not in attendance_columns:
+            conn.execute("ALTER TABLE attendance ADD COLUMN break_end_at TEXT")
         existing = conn.execute("SELECT value FROM settings WHERE key='pin_salt'").fetchone()
         if not existing:
             salt_hex, digest = new_pin_values(os.environ.get("APP_ADMIN_PIN", "1234"))
             conn.execute("INSERT INTO settings(key,value) VALUES('pin_salt',?)", (salt_hex,))
             conn.execute("INSERT INTO settings(key,value) VALUES('pin_hash',?)", (digest,))
+        for setting_key, setting_value in (
+            ("work_arrival_time", "08:30"),
+            ("work_break_start_time", "12:00"),
+            ("work_break_end_time", "13:00"),
+            ("work_departure_time", "16:30"),
+        ):
+            conn.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (setting_key, setting_value))
         if demo and conn.execute("SELECT COUNT(*) FROM employees").fetchone()[0] == 0:
             stamp = now_local().isoformat(timespec="seconds")
+            demo_start = now_local().date().replace(day=1).isoformat()
             for first, last, pin in [("Amine", "Benali", "1111"), ("Sarah", "Mansouri", "2222"), ("Yacine", "Haddad", "3333")]:
                 salt_hex, digest = new_pin_values(pin)
                 conn.execute(
                     "INSERT INTO employees(first_name,last_name,start_date,pin_salt,pin_hash,created_at) VALUES(?,?,?,?,?,?)",
-                    (first, last, now_local().date().isoformat(), salt_hex, digest, stamp),
+                    (first, last, demo_start, salt_hex, digest, stamp),
+                )
+            # Deux jours fériés d’exemple pour voir le surlignage orange du rapport.
+            demo_day = now_local().date()
+            for offset, demo_label in ((-3, "Mawlid Ennabawi"), (3, "Aïd El Adha")):
+                conn.execute(
+                    "INSERT OR IGNORE INTO holidays(holiday_date,label) VALUES(?,?)",
+                    ((demo_day + timedelta(days=offset)).isoformat(), demo_label),
                 )
 
 
@@ -169,6 +198,28 @@ def set_pin(pin: str) -> None:
     with db() as conn:
         conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('pin_salt',?)", (salt_hex,))
         conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('pin_hash',?)", (digest,))
+
+
+def admin_journal(event: str) -> None:
+    """Note chaque changement du code admin dans journal_admin.txt.
+
+    Le patron garde ainsi une trace datée de toute modification du code,
+    avec le nouveau code en clair et le PC utilisé, même si quelqu’un
+    d’autre le change avant lui.
+    """
+    try:
+        target = DB_PATH.parent / "journal_admin.txt"
+        header = ""
+        if not target.exists():
+            header = (
+                "JOURNAL DU CODE ADMINISTRATEUR\n"
+                "(date, heure, PC utilisé, nouveau code).\n"
+                + "=" * 60 + "\n"
+            )
+        with target.open("a", encoding="utf-8") as fh:
+            fh.write(header + f"{now_local().strftime('%d/%m/%Y %H:%M:%S')} · {event}\n")
+    except Exception as exc:
+        print(f"[journal] Impossible d’écrire le journal admin : {exc}")
 
 
 def set_employee_pin(employee_id: int, pin: str) -> None:
@@ -236,6 +287,68 @@ def fmt_time(value: str | None) -> str | None:
         return value[11:16] if len(value) >= 16 else value
 
 
+def time_minutes(value: str | None) -> int | None:
+    """Minutes depuis minuit d'un pointage (ISO ou 'HH:MM'). Retourne None si invalide."""
+    if not value:
+        return None
+    match = re.match(r"(\d{1,2}):(\d{2})", value.strip())
+    if match:
+        return int(match.group(1)) * 60 + int(match.group(2))
+    try:
+        dt = datetime.fromisoformat(value)
+        return dt.hour * 60 + dt.minute
+    except (ValueError, TypeError):
+        return None
+
+
+def worked_minutes(arrival: str | None, departure: str | None) -> int | None:
+    """Durée de présence (arrivée → départ), pause comprise.
+    Norme de 8 h par jour, pause incluse : on compte l'intervalle arrivée→départ.
+    Retourne None tant que le départ n'est pas pointé.
+    """
+    if not arrival or not departure:
+        return None
+    try:
+        return max(0, int((datetime.fromisoformat(departure) - datetime.fromisoformat(arrival)).total_seconds() // 60))
+    except (ValueError, TypeError):
+        return None
+
+
+def lateness_minutes(arrival: str | None, scheduled: str | None) -> int:
+    """Retard d'arrivée en minutes (0 si à l'heure ou en avance)."""
+    if not arrival or not scheduled:
+        return 0
+    actual = time_minutes(arrival)
+    target = time_minutes(scheduled)
+    if actual is None or target is None:
+        return 0
+    return max(0, actual - target)
+
+
+def hhmm(minutes: int | None) -> str:
+    """Formate des minutes en 'XhYY' (ex : 450 → '7h30')."""
+    minutes = int(minutes or 0)
+    return f"{minutes // 60}h{minutes % 60:02d}"
+
+
+def overtime_minutes(arrival: str | None, departure: str | None) -> int | None:
+    """Heures EN PLUS par rapport à la norme de 8 h/jour.
+    Retourne None tant que le départ n'est pas pointé, sinon le nombre de minutes
+    au-delà de la norme (0 si l'employé reste dans les 8 h).
+    """
+    worked = worked_minutes(arrival, departure)
+    if worked is None:
+        return None
+    return max(0, worked - DAILY_WORK_MINUTES)
+
+
+def plus_hhmm(minutes: int | None) -> str:
+    """Formate l'excédent en '+XhYY' (ex : 60 → '+1h00'). Vide si nul ou nul/0."""
+    if minutes is None or minutes <= 0:
+        return ""
+    return "+" + hhmm(minutes)
+
+
 def french_date(value: str) -> str:
     names = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
     months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
@@ -284,11 +397,30 @@ def day_context(day_iso: str) -> tuple[str | None, bool]:
     return (holiday["label"] if holiday else None), d.weekday() in (4, 5)
 
 
-def status_info(arrival: str | None, departure: str | None, holiday: str | None = None, weekend: bool = False, leave: str | None = None) -> tuple[str, str]:
+def get_setting(key: str, default: str = "") -> str:
+    with db() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+VALID_TIME = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
+
+
+def valid_time(value: str | None) -> bool:
+    return bool(value and VALID_TIME.fullmatch(value))
+
+
+def status_info(arrival: str | None, departure: str | None, holiday: str | None = None, weekend: bool = False, leave: str | None = None, break_start: str | None = None, break_end: str | None = None) -> tuple[str, str]:
     if arrival:
-        return ("Parti", "finished") if departure else ("Présent", "present")
+        if departure:
+            return "Parti", "finished"
+        if break_start and not break_end:
+            return "En pause", "pause"
+        return "Présent", "present"
     if holiday:
-        return "Jour férié", "holiday"
+        shown = holiday.strip()
+        suffix = "…" if len(shown) > 38 else ""
+        return f"Jour férié · {shown[:38]}{suffix}", "holiday"
     if weekend:
         return "Week-end", "weekend"
     if leave:
@@ -394,110 +526,163 @@ def report_dataset(start: date, end: date) -> list[dict]:
             "SELECT * FROM holidays WHERE holiday_date BETWEEN ? AND ?", (start.isoformat(), end.isoformat())
         )}
         leaves = conn.execute(
-            "SELECT * FROM employee_leaves WHERE start_date<=? AND end_date>=?",
+            """SELECT * FROM employee_leaves
+               WHERE start_date<=? AND end_date>?""",
             (end.isoformat(), start.isoformat()),
         ).fetchall()
     attendance_map = {(r["employee_id"], r["work_date"]): r for r in attendance}
     leave_map: dict[tuple[int, str], str] = {}
     for leave in leaves:
         leave_start = max(start, datetime.strptime(leave["start_date"], "%Y-%m-%d").date())
-        leave_end = min(end, datetime.strptime(leave["end_date"], "%Y-%m-%d").date())
+        # end_date est la date de reprise : elle n’est pas incluse dans le congé.
+        return_date = datetime.strptime(leave["end_date"], "%Y-%m-%d").date()
+        leave_end = min(end, return_date - timedelta(days=1))
         for leave_day in date_range(leave_start, leave_end):
             leave_map[(leave["employee_id"], leave_day.isoformat())] = leave["label"]
     result = []
     today = now_local().date()
+    scheduled_arrival = get_setting("work_arrival_time", "08:30")
     for employee in employees:
         details = []
         employee_start = datetime.strptime(employee["start_date"] or employee["created_at"][:10], "%Y-%m-%d").date()
-        totals = {"present": 0, "absent": 0, "weekend": 0, "holiday": 0, "leave": 0, "blank": 0, "minutes": 0, "absence_minutes": 0}
+        totals = {"present": 0, "absent": 0, "weekend": 0, "holiday": 0, "leave": 0, "blank": 0,
+                  "minutes": 0, "absence_minutes": 0, "worked_minutes": 0, "lateness_minutes": 0, "overtime_minutes": 0}
         for d in date_range(start, end):
             iso = d.isoformat()
             row = attendance_map.get((employee["id"], iso))
             arrival = row["arrival_at"] if row else None
+            break_start = row["break_start_at"] if row else None
+            break_end = row["break_end_at"] if row else None
             departure = row["departure_at"] if row else None
+            worked = None
+            lateness = 0
+            overtime = None
             if arrival:
                 status = "Présent"
                 totals["present"] += 1
-                if departure:
-                    try:
-                        totals["minutes"] += max(0, int((datetime.fromisoformat(departure) - datetime.fromisoformat(arrival)).total_seconds() // 60))
-                    except ValueError:
-                        pass
-            elif d < employee_start or d >= today:
+                worked = worked_minutes(arrival, departure)
+                lateness = lateness_minutes(arrival, scheduled_arrival)
+                overtime = overtime_minutes(arrival, departure)
+                if worked is not None:
+                    # Norme de 8 h/jour, pause comprise : on compte l'intervalle arrivée→départ.
+                    totals["worked_minutes"] += worked
+                    totals["minutes"] += worked
+                if overtime is not None:
+                    totals["overtime_minutes"] += overtime
+                totals["lateness_minutes"] += lateness
+            elif d < employee_start:
                 status = ""
                 totals["blank"] += 1
+            elif (employee["id"], iso) in leave_map and iso not in holidays and d.weekday() not in (4, 5):
+                # Un congé enregistré apparaît immédiatement dans l’aperçu
+                # mensuel, même si la date est aujourd’hui ou dans le futur.
+                status = f"Congé - {leave_map[(employee['id'], iso)]}"
+                totals["leave"] += 1
             elif iso in holidays:
+                # Un jour férié s’affiche dès qu’il est enregistré, avec son
+                # nom (ex : Mawlid Ennabawi), même si la date est future.
                 status = f"Férié - {holidays[iso]}"
                 totals["holiday"] += 1
+            elif d >= today:
+                status = ""
+                totals["blank"] += 1
             elif d.weekday() in (4, 5):
                 status = "Week-end"
                 totals["weekend"] += 1
-            elif (employee["id"], iso) in leave_map:
-                status = f"Congé - {leave_map[(employee['id'], iso)]}"
-                totals["leave"] += 1
             else:
                 status = "Absent"
                 totals["absent"] += 1
                 totals["absence_minutes"] += DAILY_WORK_MINUTES
             blank = not status
-            details.append({"date": d, "arrival": "" if blank else (fmt_time(arrival) or "—"), "departure": "" if blank else (fmt_time(departure) or "—"), "status": status})
-        result.append({"name": full_name(employee), "start_date": employee_start, "totals": totals, "details": details})
+            details.append({"date": d, "arrival": "" if blank else (fmt_time(arrival) or "—"), "break_start": "" if blank else (fmt_time(break_start) or "—"), "break_end": "" if blank else (fmt_time(break_end) or "—"), "departure": "" if blank else (fmt_time(departure) or "—"), "status": status, "worked": worked, "lateness": lateness, "overtime": overtime})
+        result.append({"name": full_name(employee), "start_date": employee_start, "scheduled_arrival": scheduled_arrival, "totals": totals, "details": details})
     return result
 
 
 def make_report_pdf(start: date, end: date) -> bytes:
     dataset = report_dataset(start, end)
     pages: list[PDFPage] = []
-    chunks = [dataset[i:i + 25] for i in range(0, len(dataset), 25)] or [[]]
-    for chunk_index, chunk in enumerate(chunks):
-        p = PDFPage()
-        p.rect(0, 762, 595, 80, (0.09, 0.35, 0.86))
-        p.text(40, 803, "Rapport mensuel de présence", 22, True, (1, 1, 1))
-        p.text(40, 781, f"Période du {short_french_date(start)} au {short_french_date(end)} · Base : 7 h par jour", 10, color=(0.90, 0.94, 1))
-        p.text(40, 738, "Résumé par employé" + (f" ({chunk_index + 1}/{len(chunks)})" if len(chunks) > 1 else ""), 14, True)
-        headers = [(40, "Employé"), (252, "J. trav."), (310, "H. trav."), (374, "J. abs."), (432, "H. abs."), (500, "Congés")]
-        p.rect(36, 704, 523, 24, (0.94, 0.96, 0.99))
-        for x, label in headers:
-            p.text(x, 712, label, 7.5, True, (0.30, 0.37, 0.47))
-        y = 687
-        for employee in chunk:
-            t = employee["totals"]
-            worked_hours = f"{t['minutes'] // 60}h{t['minutes'] % 60:02d}"
-            absence_hours = f"{t['absence_minutes'] // 60}h{t['absence_minutes'] % 60:02d}"
-            values = [(40, employee["name"][:34], True), (268, str(t["present"]), False), (315, worked_hours, False), (394, str(t["absent"]), False), (438, absence_hours, False), (518, str(t["leave"]), False)]
-            for x, value, bold in values:
-                p.text(x, y, value, 8.3, bold)
-            p.line(36, y - 7, 559, y - 7)
-            y -= 23
-        p.text(40, 55, f"Généré le {now_local().strftime('%d/%m/%Y à %H:%M')} · Vendredi et samedi : week-end · Congés et jours fériés exclus des absences", 7.5, color=(0.40, 0.45, 0.53))
-        pages.append(p)
-    day_names = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
     for employee in dataset:
         p = PDFPage()
         p.rect(0, 774, 595, 68, (0.09, 0.35, 0.86))
-        p.text(40, 808, employee["name"][:48], 19, True, (1, 1, 1))
-        p.text(40, 787, f"Tableau du {short_french_date(start)} au {short_french_date(end)} · Début employé : {short_french_date(employee['start_date'])}", 10, color=(0.90, 0.94, 1))
+        p.text(40, 808, "Rapport mensuel de présence", 19, True, (1, 1, 1))
+        p.text(40, 787, f"Du {short_french_date(start)} au {short_french_date(end)} · Début employé : {short_french_date(employee['start_date'])}", 10, color=(0.90, 0.94, 1))
+
+        # Les heures de pause, de reprise, la sortie, le total d'heures et l'excédent de la journée sont affichés.
         p.rect(36, 728, 523, 23, (0.94, 0.96, 0.99))
-        for x, label in [(40, "Date"), (115, "Jour"), (180, "Arrivée"), (255, "Départ"), (330, "Statut")]:
+        headers = [(40, "Nom et prénom"), (125, "Date"), (180, "Arrivée"), (228, "Pause"), (278, "Reprise"), (330, "Sortie"), (395, "Heures"), (468, "En plus")]
+        for x, label in headers:
             p.text(x, 736, label, 8, True, (0.30, 0.37, 0.47))
+
         y = 712
         for detail in employee["details"]:
-            status = detail["status"]
-            color = (0.70, 0.14, 0.10) if status == "Absent" else (0.04, 0.48, 0.33) if status == "Présent" else (0.40, 0.45, 0.53)
-            p.text(40, y, detail["date"].strftime("%d/%m/%Y"), 8)
-            p.text(115, y, day_names[detail["date"].weekday()], 8)
-            p.text(180, y, detail["arrival"], 8)
-            p.text(255, y, detail["departure"], 8)
-            p.text(330, y, status[:42], 8, status in ("Présent", "Absent"), color)
+            is_leave = detail["status"].startswith("Congé")
+            is_holiday = detail["status"].startswith("Férié")
+            is_weekend = detail["date"].weekday() in (4, 5)
+            arrival = "" if detail["arrival"] == "—" else detail["arrival"]
+            break_start = "" if detail["break_start"] == "—" else detail["break_start"]
+            break_end = "" if detail["break_end"] == "—" else detail["break_end"]
+            departure = "" if detail["departure"] == "—" else detail["departure"]
+            # Nom du jour férié tel qu’il a été saisi (ex : Mawlid Ennabawi).
+            holiday_name = detail["status"].split(" - ", 1)[1].strip() if is_holiday and " - " in detail["status"] else ""
+            if is_weekend:
+                p.rect(36, y - 5, 523, 16, (0.84, 0.86, 0.89))
+            if is_holiday:
+                # Le rouge clair du jour férié passe devant le gris du week-end.
+                p.rect(36, y - 5, 523, 16, (1.00, 0.88, 0.88))
+                arrival, break_start, break_end, departure = "JOUR FÉRIÉ", "", "", ""
+            if is_leave:
+                # Le violet du congé reste prioritaire sur le gris du week-end.
+                p.rect(36, y - 5, 523, 16, (0.96, 0.94, 1.00))
+                arrival, break_start, break_end, departure = "CONGÉ", "", "", ""
+            holiday_color = (0.41, 0.25, 0.78) if is_leave else (0.70, 0.14, 0.10) if is_holiday else (0.10, 0.15, 0.23)
+            # Heures travaillées du jour (pause comprise) ; « — » si la journée est en cours.
+            if detail["worked"] is not None:
+                worked_cell = hhmm(detail["worked"])
+            else:
+                worked_cell = "—" if detail["status"] == "Présent" else ""
+            # Excédent au-delà de 8 h (heures supplémentaires) ; « — » si la journée est en cours.
+            if detail["overtime"] is not None:
+                overtime_cell = plus_hhmm(detail["overtime"])
+            else:
+                overtime_cell = "—" if detail["status"] == "Présent" else ""
+            p.text(40, y, employee["name"][:23], 7.2, True)
+            p.text(125, y, detail["date"].strftime("%d/%m/%Y"), 7.2)
+            p.text(185, y, arrival, 7.5, is_leave or is_holiday, holiday_color)
+            # Le nom du férié est écrit en rouge sur les colonnes du milieu.
+            if is_holiday:
+                shown_name = holiday_name if len(holiday_name) <= 48 else holiday_name[:48].rstrip() + "…"
+                p.text(228, y, shown_name, 7.5, True, (0.70, 0.14, 0.10))
+            p.text(228, y, break_start, 7.5)
+            p.text(278, y, break_end, 7.5)
+            p.text(330, y, departure, 7.5)
+            p.text(400, y, worked_cell, 7.5, True, (0.05, 0.32, 0.72))
+            p.text(470, y, overtime_cell, 7.5, True, (0.70, 0.14, 0.10))
             p.line(36, y - 6, 559, y - 6)
             y -= 18
-        t = employee["totals"]
-        worked_hours = f"{t['minutes'] // 60}h{t['minutes'] % 60:02d}"
-        absence_hours = f"{t['absence_minutes'] // 60}h{t['absence_minutes'] % 60:02d}"
-        p.rect(36, y - 54, 523, 58, (0.93, 0.96, 1.00))
-        p.text(46, y - 16, f"TOTAL TRAVAIL : {t['present']} jour(s) · {worked_hours}", 10, True, (0.05, 0.32, 0.72))
-        p.text(310, y - 16, f"TOTAL ABSENCE : {t['absent']} jour(s) · {absence_hours}", 9, True, (0.70, 0.14, 0.10))
-        p.text(46, y - 38, f"Congés : {t['leave']} jour(s)   ·   Week-ends : {t['weekend']} jour(s)   ·   Jours fériés : {t['holiday']} jour(s)", 8.5, True)
+
+        # Récapitulatif mensuel : heures du mois, jours, retards et heures en plus.
+        totals = employee["totals"]
+        p.rect(36, y - 64, 523, 68, (0.93, 0.96, 1.00))
+        p.text(46, y - 50, "TOTAL", 10, True, (0.05, 0.32, 0.72))
+        p.text(130, y - 50, f"Journées travaillées : {totals['present']}", 9, True, (0.05, 0.32, 0.72))
+        p.text(330, y - 50, f"Jours d'absence : {totals['absent']}", 9, True, (0.70, 0.14, 0.10))
+        p.text(46, y - 30, f"Heures travaillées du mois : {hhmm(totals['worked_minutes'])}", 9, True, (0.05, 0.32, 0.72))
+        p.text(240, y - 30, f"Heures en plus du mois : {plus_hhmm(totals['overtime_minutes']) or hhmm(totals['overtime_minutes'])}", 9, True, (0.70, 0.14, 0.10))
+        p.text(400, y - 30, f"Retards cumulés : {hhmm(totals['lateness_minutes'])}", 9, True, (0.70, 0.14, 0.10))
+        legend1 = (f"Norme : 8 h/jour, pause comprise. Heures = arrivée→départ ; "
+                   f"« En plus » = dépassement au-delà de 8 h ; retards par rapport à {employee['scheduled_arrival']}.")
+        legend2 = "Week-ends en gris, congés en violet et jours fériés en rouge clair avec leur nom. Dates futures sans pointage vides."
+        p.text(40, 48, legend1, 7.5, color=(0.40, 0.45, 0.53))
+        p.text(40, 40, legend2, 7.5, color=(0.40, 0.45, 0.53))
+        pages.append(p)
+
+    if not pages:
+        p = PDFPage()
+        p.rect(0, 762, 595, 80, (0.09, 0.35, 0.86))
+        p.text(40, 803, "Rapport mensuel de présence", 22, True, (1, 1, 1))
+        p.text(40, 781, f"Du {short_french_date(start)} au {short_french_date(end)}", 10, color=(0.90, 0.94, 1))
+        p.text(40, 720, "Aucun employé à afficher pour cette période.", 11, True)
         pages.append(p)
     return build_pdf(pages)
 
@@ -684,8 +869,12 @@ class AppHandler(BaseHTTPRequestHandler):
             self.deactivate_employee(route, data)
         elif re.fullmatch(r"/admin/devices/\d+/revoke", route):
             self.revoke_device(route, data)
+        elif route == "/admin/work-hours":
+            self.save_work_hours(data)
         elif route == "/admin/pin":
             self.change_pin(data)
+        elif route == "/admin/attendance/edit":
+            self.edit_attendance(data)
         elif route == "/admin/attendance/reset":
             self.reset_attendance(data)
         else:
@@ -699,14 +888,18 @@ class AppHandler(BaseHTTPRequestHandler):
         date_iso = today_iso()
         with db() as conn:
             attendance = conn.execute("SELECT * FROM attendance WHERE employee_id=? AND work_date=?", (employee["id"], date_iso)).fetchone()
-            leave_row = conn.execute("SELECT label FROM employee_leaves WHERE employee_id=? AND ? BETWEEN start_date AND end_date ORDER BY start_date DESC LIMIT 1", (employee["id"], date_iso)).fetchone()
+            leave_row = conn.execute("SELECT label FROM employee_leaves WHERE employee_id=? AND start_date<=? AND end_date>? ORDER BY start_date DESC LIMIT 1", (employee["id"], date_iso, date_iso)).fetchone()
         arrival = attendance["arrival_at"] if attendance else None
+        break_start = attendance["break_start_at"] if attendance else None
+        break_end = attendance["break_end_at"] if attendance else None
         departure = attendance["departure_at"] if attendance else None
         leave_label = leave_row["label"] if leave_row else None
         holiday, weekend = day_context(date_iso)
-        status_label, status_class = status_info(arrival, departure, holiday, weekend, leave_label)
+        status_label, status_class = status_info(arrival, departure, holiday, weekend, leave_label, break_start, break_end)
         can_arrive = not arrival
-        can_depart = bool(arrival and not departure)
+        can_break_start = bool(arrival and not departure and not break_start)
+        can_break_end = bool(break_start and not break_end and not departure)
+        can_depart = bool(arrival and not departure and (not break_start or break_end))
         msg = message_box(query.get("type"), query.get("message"))
         context_notice = f'<div class="notice notice-info">Aujourd’hui est un jour férié : {html.escape(holiday)}. Le pointage reste possible si vous travaillez.</div>' if holiday else ('<div class="notice notice-info">Aujourd’hui est un jour de week-end. Le pointage reste possible si vous travaillez.</div>' if weekend else (f'<div class="notice notice-info">Un congé est enregistré aujourd’hui : {html.escape(leave_label)}. Le pointage reste possible si vous travaillez.</div>' if leave_label else ''))
         csrf = sign(f"punch:{employee['id']}:{date_iso}")
@@ -716,11 +909,11 @@ class AppHandler(BaseHTTPRequestHandler):
         <form method="post" action="/punch" autocomplete="off"><input type="hidden" name="csrf" value="{csrf}">
           <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:20px"><div class="field"><label for="first_name">Prénom</label><input class="input" id="first_name" name="first_name" required maxlength="60" autofocus></div><div class="field"><label for="last_name">Nom</label><input class="input" id="last_name" name="last_name" required maxlength="60"></div></div>
           <div class="field"><label for="employee_pin">Code personnel</label><input class="input" id="employee_pin" name="employee_pin" type="password" inputmode="numeric" required maxlength="20" placeholder="••••"></div>
-          <div class="punch-grid"><button class="btn btn-primary btn-large" name="action" value="arrival"{' disabled' if not can_arrive else ''}>✓ Pointer l’arrivée</button><button class="btn btn-secondary btn-large" name="action" value="departure"{' disabled' if not can_depart else ''}>→ Pointer le départ</button></div>
+          <div class="punch-grid"><button class="btn btn-primary btn-large" name="action" value="arrival"{' disabled' if not can_arrive else ''}>✓ Pointer l’arrivée</button><button class="btn btn-ghost btn-large" name="action" value="break_start"{' disabled' if not can_break_start else ''}>Ⅱ Début de pause</button><button class="btn btn-secondary btn-large" name="action" value="break_end"{' disabled' if not can_break_end else ''}>▶ Reprendre le travail</button><button class="btn btn-secondary btn-large" name="action" value="departure"{' disabled' if not can_depart else ''}>→ Pointer le départ</button></div>
         </form>
-        <div class="today-status"><span class="badge {status_class}">{status_label}</span><div class="today-times">Arrivée : <strong>{fmt_time(arrival) or '—'}</strong><br>Départ : <strong>{fmt_time(departure) or '—'}</strong></div></div>
+        <div class="today-status"><span class="badge {status_class}">{status_label}</span><div class="today-times">Arrivée : <strong>{fmt_time(arrival) or '—'}</strong><br>Pause : <strong>{fmt_time(break_start) or '—'}</strong><br>Reprise : <strong>{fmt_time(break_end) or '—'}</strong><br>Départ : <strong>{fmt_time(departure) or '—'}</strong></div></div>
         </div></section><p class="footer-note">Ce PC est attribué à {html.escape(full_name(employee))}</p></div></div></main>"""
-        scripts = """function tick(){const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}tick();setInterval(tick,1000);"""
+        scripts = EMPLOYEE_JS
         self.send_bytes(page("Pointer", body, scripts=scripts))
 
     def setup_page(self, query: dict[str, str]) -> None:
@@ -771,11 +964,33 @@ class AppHandler(BaseHTTPRequestHandler):
                 else:
                     conn.execute("INSERT INTO attendance(employee_id,work_date,arrival_at) VALUES(?,?,?) ON CONFLICT(employee_id,work_date) DO UPDATE SET arrival_at=excluded.arrival_at", (employee["id"], date_iso, stamp))
                     msg, kind = f"Arrivée de {full_name(employee)} enregistrée à {stamp[11:16]}.", "success"
+            elif action == "break_start":
+                if not row or not row["arrival_at"]:
+                    msg, kind = "Enregistrez d’abord l’arrivée.", "error"
+                elif row["departure_at"]:
+                    msg, kind = "La journée est déjà terminée.", "error"
+                elif row["break_start_at"]:
+                    msg, kind = "Le début de pause est déjà enregistré.", "error"
+                else:
+                    conn.execute("UPDATE attendance SET break_start_at=? WHERE employee_id=? AND work_date=?", (stamp, employee["id"], date_iso))
+                    msg, kind = f"Début de pause enregistré à {stamp[11:16]}.", "success"
+            elif action == "break_end":
+                if not row or not row["break_start_at"]:
+                    msg, kind = "Enregistrez d’abord le début de la pause.", "error"
+                elif row["break_end_at"]:
+                    msg, kind = "La reprise est déjà enregistrée.", "error"
+                elif row["departure_at"]:
+                    msg, kind = "La journée est déjà terminée.", "error"
+                else:
+                    conn.execute("UPDATE attendance SET break_end_at=? WHERE employee_id=? AND work_date=?", (stamp, employee["id"], date_iso))
+                    msg, kind = f"Reprise du travail enregistrée à {stamp[11:16]}.", "success"
             elif action == "departure":
                 if not row or not row["arrival_at"]:
                     msg, kind = "Enregistrez d’abord l’arrivée.", "error"
                 elif row["departure_at"]:
                     msg, kind = "Le départ est déjà enregistré aujourd’hui.", "error"
+                elif row["break_start_at"] and not row["break_end_at"]:
+                    msg, kind = "Enregistrez la reprise du travail avant le départ.", "error"
                 else:
                     conn.execute("UPDATE attendance SET departure_at=? WHERE employee_id=? AND work_date=?", (stamp, employee["id"], date_iso))
                     msg, kind = f"Départ de {full_name(employee)} enregistré à {stamp[11:16]}.", "success"
@@ -838,25 +1053,31 @@ class AppHandler(BaseHTTPRequestHandler):
         holiday, weekend = day_context(day_iso)
         with db() as conn:
             rows = conn.execute(
-                """SELECT e.id,e.first_name,e.last_name,e.start_date,e.created_at,a.arrival_at,a.departure_at,
+                """SELECT e.id,e.first_name,e.last_name,e.start_date,e.created_at,a.arrival_at,a.break_start_at,a.break_end_at,a.departure_at,
                           (SELECT l.label FROM employee_leaves l
-                           WHERE l.employee_id=e.id AND ? BETWEEN l.start_date AND l.end_date
+                           WHERE l.employee_id=e.id AND l.start_date<=? AND l.end_date>?
                            ORDER BY l.start_date DESC LIMIT 1) AS leave_label
                    FROM employees e
                    LEFT JOIN attendance a ON a.employee_id=e.id AND a.work_date=?
                    WHERE e.active=1 ORDER BY e.last_name,e.first_name""",
-                (day_iso, day_iso),
+                (day_iso, day_iso, day_iso),
             ).fetchall()
         result = []
         selected_day = datetime.strptime(day_iso, "%Y-%m-%d").date()
+        scheduled_arrival = get_setting("work_arrival_time", "08:30")
         for row in rows:
             employee_start = datetime.strptime(row["start_date"] or row["created_at"][:10], "%Y-%m-%d").date()
-            if not row["arrival_at"] and (selected_day < employee_start or selected_day >= now_local().date()):
+            if not row["arrival_at"] and selected_day < employee_start:
+                label, css_class = "", ""
+            elif not row["arrival_at"] and selected_day >= now_local().date() and not row["leave_label"]:
                 label, css_class = "", ""
             else:
-                label, css_class = status_info(row["arrival_at"], row["departure_at"], holiday, weekend, row["leave_label"])
+                label, css_class = status_info(row["arrival_at"], row["departure_at"], holiday, weekend, row["leave_label"], row["break_start_at"], row["break_end_at"])
             blank = not label
-            result.append({"id": row["id"], "name": full_name(row), "arrival": "" if blank else fmt_time(row["arrival_at"]), "departure": "" if blank else fmt_time(row["departure_at"]), "status": label, "status_class": css_class})
+            worked = worked_minutes(row["arrival_at"], row["departure_at"])
+            lateness = lateness_minutes(row["arrival_at"], scheduled_arrival)
+            overtime = overtime_minutes(row["arrival_at"], row["departure_at"])
+            result.append({"id": row["id"], "name": full_name(row), "arrival": "" if blank else fmt_time(row["arrival_at"]), "break_start": "" if blank else fmt_time(row["break_start_at"]), "break_end": "" if blank else fmt_time(row["break_end_at"]), "departure": "" if blank else fmt_time(row["departure_at"]), "worked": worked, "lateness": lateness, "overtime": overtime, "status": label, "status_class": css_class, "weekend": weekend})
         return result
 
     def admin_dashboard(self, query: dict[str, str]) -> None:
@@ -872,34 +1093,58 @@ class AppHandler(BaseHTTPRequestHandler):
                                      JOIN employees e ON e.id=l.employee_id
                                      ORDER BY l.start_date DESC LIMIT 30""").fetchall()
         reports = sorted(REPORT_DIR.glob("rapport_presence_*.pdf"), reverse=True)[:12] if REPORT_DIR.exists() else []
-        present_count = sum(1 for r in rows if r["status"] == "Présent")
+        present_count = sum(1 for r in rows if r["status"] in ("Présent", "En pause"))
         absent_count = sum(1 for r in rows if r["status"] == "Absent")
         arrived_count = sum(1 for r in rows if r["arrival"])
-        table_rows = self.render_rows(rows) or '<tr><td colspan="3"><div class="empty"><strong>Aucun employé</strong>Ajoutez votre premier employé ci-dessous.</div></td></tr>'
+        table_rows = self.render_rows(rows) or '<tr><td colspan="8"><div class="empty"><strong>Aucun employé</strong>Ajoutez votre premier employé ci-dessous.</div></td></tr>'
         employee_items = "".join(self.employee_item(r, csrf or "") for r in employees) or '<div class="empty"><strong>Équipe vide</strong>Les employés ajoutés apparaîtront ici.</div>'
         employee_options = ''.join(f'<option value="{r["id"]}">{html.escape(full_name(r))}</option>' for r in employees)
         holiday_items = ''.join(f'<div class="employee-row"><div><div class="employee-name">{html.escape(r["label"])}</div><div class="device-state">{html.escape(french_date(r["holiday_date"]).capitalize())}</div></div><form method="post" action="/admin/holidays/{r["id"]}/delete"><input type="hidden" name="csrf" value="{csrf}"><button class="btn btn-danger icon-btn" onclick="return confirm(\'Supprimer ce jour férié ?\')">×</button></form></div>' for r in holidays) or '<div class="empty"><strong>Aucun jour férié</strong>Ajoutez-les avec le formulaire.</div>'
-        leave_items = ''.join(f'<div class="employee-row"><div><div class="employee-name">{html.escape(full_name(r))} · {html.escape(r["label"])}</div><div class="device-state">Du {html.escape(r["start_date"])} au {html.escape(r["end_date"])}</div></div><form method="post" action="/admin/leaves/{r["id"]}/delete"><input type="hidden" name="csrf" value="{csrf}"><button class="btn btn-danger icon-btn" onclick="return confirm(\'Supprimer ce congé ?\')">×</button></form></div>' for r in leaves) or '<div class="empty"><strong>Aucun congé</strong>Ajoutez une période de congé ci-dessous.</div>'
+        leave_items = ''.join(f'<div class="employee-row"><div><div class="employee-name">{html.escape(full_name(r))} · {html.escape(r["label"])}</div><div class="device-state">Début : {html.escape(r["start_date"])} · Reprise : {html.escape(r["end_date"])}</div></div><form method="post" action="/admin/leaves/{r["id"]}/delete"><input type="hidden" name="csrf" value="{csrf}"><button class="btn btn-danger icon-btn" onclick="return confirm(\'Supprimer ce congé ?\')">×</button></form></div>' for r in leaves) or '<div class="empty"><strong>Aucun congé</strong>Ajoutez une période de congé ci-dessous.</div>'
         report_items = ''.join(f'<div class="employee-row"><div><div class="employee-name">{"Aperçu provisoire" if "_provisoire" in p.stem else "Rapport final"}</div><div class="device-state">{html.escape(p.stem.replace("rapport_presence_", "").replace("_au_", " au ").replace("_provisoire", ""))}</div></div><a class="btn btn-ghost" href="/admin/reports/{quote(p.name)}">PDF</a></div>' for p in reports) or '<div class="empty"><strong>Aucun rapport</strong>Le premier sera créé automatiquement.</div>'
+        monthly_summary = report_dataset(*current_month_period())
+        summary_rows = "".join(
+            f'<tr><td><div class="person">{html.escape(e["name"])}</div></td>'
+            f'<td><span class="time">{e["totals"]["present"]}</span></td>'
+            f'<td><span class="time">{hhmm(e["totals"]["worked_minutes"])}</span></td>'
+            f'<td><span class="time">{hhmm(e["totals"]["lateness_minutes"])}</span></td>'
+            f'<td><span class="time">{plus_hhmm(e["totals"]["overtime_minutes"]) or hhmm(e["totals"]["overtime_minutes"])}</span></td></tr>'
+            for e in monthly_summary
+        ) or '<tr><td colspan="5"><div class="empty"><strong>Aucune donnée</strong>Ajoutez des pointages pour voir la synthèse.</div></td></tr>'
+        work_arrival = get_setting("work_arrival_time", "08:30")
+        work_break_start = get_setting("work_break_start_time", "12:00")
+        work_break_end = get_setting("work_break_end_time", "13:00")
+        work_departure = get_setting("work_departure_time", "16:30")
         msg = message_box(query.get("type"), query.get("message"))
         start, end = latest_completed_period()
         current_start, current_end = current_month_period()
-        body = f"""<main><div class="shell">{msg}<div class="hero"><div><div class="eyebrow">Tableau de bord</div><h1>Présences de l’équipe</h1><p id="date-label">{html.escape(french_date(day_iso).capitalize())}</p></div><div class="inline"><a class="btn btn-ghost" href="/admin/report/latest.pdf">Dernier PDF final</a><a class="btn btn-primary" href="/admin/report/current.pdf">Aperçu du mois</a></div></div>
+        body = f"""<main><div class="admin-layout"><aside class="admin-sidebar" aria-label="Menu administrateur"><div class="sidebar-label">Espace administrateur</div><nav class="side-nav"><a class="side-link active" href="#dashboard"><span class="side-icon">⌂</span>Vue d’ensemble</a><a class="side-link" href="#employees"><span class="side-icon">＋</span>Ajouter un employé</a><a class="side-link" href="#leaves"><span class="side-icon">◇</span>Ajouter un congé</a><a class="side-link" href="#holidays"><span class="side-icon">☆</span>Jours fériés</a><a class="side-link" href="#work-hours"><span class="side-icon">🕒</span>Horaires de travail</a><a class="side-link" href="#reports"><span class="side-icon">▤</span>Rapports PDF</a><a class="side-link" href="#corrections"><span class="side-icon">↻</span>Correction des pointages</a><a class="side-link" href="#security"><span class="side-icon">●</span>Modifier le mot de passe</a><div class="side-divider"></div><a class="side-link side-logout" href="/admin/logout"><span class="side-icon">→</span>Déconnexion</a></nav></aside><div class="admin-content">{msg}<div id="dashboard" class="hero section-anchor"><div><div class="eyebrow">Tableau de bord</div><h1>Présences de l’équipe</h1><p id="date-label">{html.escape(french_date(day_iso).capitalize())}</p></div><div class="inline"><a class="btn btn-ghost" href="/admin/report/latest.pdf">Dernier PDF final</a><a class="btn btn-primary" href="/admin/report/current.pdf">Aperçu du mois</a></div></div>
         <section class="grid stats"><div class="card stat"><div class="stat-icon blue">👥</div><div><div class="stat-label">Effectif total</div><div class="stat-value" id="stat-total">{len(rows)}</div></div></div><div class="card stat"><div class="stat-icon green">✓</div><div><div class="stat-label">Actuellement présents</div><div class="stat-value" id="stat-present">{present_count}</div></div></div><div class="card stat"><div class="stat-icon red">!</div><div><div class="stat-label">Absents attendus</div><div class="stat-value" id="stat-absent">{absent_count}</div></div></div></section>
-        <section class="card"><div class="toolbar"><div><h2 class="section-title">Feuille de présence</h2><p class="section-subtitle"><span id="stat-arrived">{arrived_count}</span> arrivée(s) enregistrée(s)</p></div><div class="toolbar-right"><input class="input date-input" type="date" id="work-date" value="{day_iso}"><a class="btn btn-ghost" id="export-link" href="/admin/export.csv?date={day_iso}">↓ Exporter CSV</a></div></div><div class="table-wrap"><table><thead><tr><th>Nom et prénom</th><th>Heure d’arrivée</th><th>Heure de départ</th></tr></thead><tbody id="attendance-body">{table_rows}</tbody></table></div></section>
-        <div class="grid lower-grid"><section class="card padded"><div class="section-head"><div><h2 class="section-title">Employés et PC attribués</h2><p class="section-subtitle">Définissez le PIN lors de l’ajout, puis configurez son PC.</p></div></div><form method="post" action="/admin/employees"><input type="hidden" name="csrf" value="{csrf}"><div class="grid leave-form" style="grid-template-columns:1fr 1fr 150px 150px;gap:10px"><div><label>Prénom</label><input class="input" name="first_name" required maxlength="60"></div><div><label>Nom</label><input class="input" name="last_name" required maxlength="60"></div><div><label>Date de début</label><input class="input" name="employee_start_date" type="date" value="{today_iso()}" required></div><div><label>PIN personnel</label><input class="input" name="employee_pin" type="password" inputmode="numeric" minlength="4" maxlength="20" required></div></div><button class="btn btn-primary" style="margin-top:12px">+ Ajouter l’employé</button></form><div style="height:18px"></div><div class="employee-list">{employee_items}</div>
+        <section class="card"><div class="toolbar"><div><h2 class="section-title">Feuille de présence</h2><p class="section-subtitle"><span id="stat-arrived">{arrived_count}</span> arrivée(s) enregistrée(s)</p></div><div class="toolbar-right"><input class="input date-input" type="date" id="work-date" value="{day_iso}"><a class="btn btn-ghost" id="export-link" href="/admin/export.csv?date={day_iso}">↓ Exporter CSV</a></div></div><div class="table-wrap"><table><thead><tr><th>Nom et prénom</th><th>Arrivée</th><th>Début pause</th><th>Reprise</th><th>Départ</th><th>Heures</th><th>Retard</th><th>En plus</th></tr></thead><tbody id="attendance-body">{table_rows}</tbody></table></div></section>
+        <section class="card"><div class="toolbar"><div><h2 class="section-title">Synthèse du mois</h2><p class="section-subtitle">Heures travaillées, retards et heures en plus cumulés depuis le {short_french_date(current_start)} · norme 8 h/jour, pause comprise.</p></div><a class="btn btn-ghost" href="/admin/report/current.pdf">Aperçu PDF</a></div><div class="table-wrap"><table><thead><tr><th>Nom et prénom</th><th>Journées travaillées</th><th>Heures du mois</th><th>Retards cumulés</th><th>Heures en plus</th></tr></thead><tbody>{summary_rows}</tbody></table></div></section>
+        <div class="grid lower-grid"><section id="employees" class="card padded section-anchor"><div class="section-head"><div><h2 class="section-title">Employés et PC attribués</h2><p class="section-subtitle">Définissez le PIN lors de l’ajout, puis configurez son PC.</p></div></div><form method="post" action="/admin/employees"><input type="hidden" name="csrf" value="{csrf}"><div class="grid leave-form" style="grid-template-columns:1fr 1fr 150px 150px;gap:10px"><div><label>Prénom</label><input class="input" name="first_name" required maxlength="60"></div><div><label>Nom</label><input class="input" name="last_name" required maxlength="60"></div><div><label>Date de début</label><input class="input" name="employee_start_date" type="date" value="{today_iso()}" required></div><div><label>PIN personnel</label><input class="input" name="employee_pin" type="password" inputmode="numeric" minlength="4" maxlength="20" required></div></div><button class="btn btn-primary" style="margin-top:12px">+ Ajouter l’employé</button></form><div style="height:18px"></div><div class="employee-list">{employee_items}</div>
         <div class="danger-zone"><h3 class="section-title" style="font-size:15px">Changer un code employé</h3><form class="inline" method="post" action="/admin/employee-pin" style="margin-top:12px"><input type="hidden" name="csrf" value="{csrf}"><select class="select" name="employee_id" required><option value="">Employé…</option>{employee_options}</select><input class="input" name="new_employee_pin" type="password" inputmode="numeric" minlength="4" maxlength="20" required placeholder="Nouveau PIN"><button class="btn btn-secondary">Modifier</button></form><h3 class="section-title" style="font-size:15px;margin-top:18px">Modifier une date de début</h3><form class="inline" method="post" action="/admin/employee-start" style="margin-top:12px"><input type="hidden" name="csrf" value="{csrf}"><select class="select" name="employee_id" required><option value="">Employé…</option>{employee_options}</select><input class="input" name="employee_start_date" type="date" required><button class="btn btn-secondary">Modifier</button></form><div class="help">Toutes les dates antérieures au début seront laissées vides dans le tableau mensuel.</div></div></section>
-        <section class="card padded"><div class="section-head"><div><h2 class="section-title">Jours fériés</h2><p class="section-subtitle">Vendredi et samedi sont déjà des week-ends.</p></div></div><form method="post" action="/admin/holidays"><input type="hidden" name="csrf" value="{csrf}"><div class="field"><label>Date</label><input class="input" name="holiday_date" type="date" required></div><div class="field"><label>Libellé</label><input class="input" name="label" maxlength="80" required placeholder="Fête nationale"></div><button class="btn btn-primary">+ Ajouter</button></form><div style="height:18px"></div><div class="employee-list">{holiday_items}</div></section></div>
-        <section class="card padded" style="margin-top:18px"><div class="section-head"><div><h2 class="section-title">Congés des employés</h2><p class="section-subtitle">Les journées ouvrées en congé ne sont pas comptées comme absences.</p></div></div><form method="post" action="/admin/leaves"><input type="hidden" name="csrf" value="{csrf}"><div class="grid leave-form" style="grid-template-columns:1.2fr 1fr 1fr 1.5fr;gap:10px"><div><label>Employé</label><select class="select" name="employee_id" required><option value="">Choisir…</option>{employee_options}</select></div><div><label>Du</label><input class="input" name="start_date" type="date" required></div><div><label>Au</label><input class="input" name="end_date" type="date" required></div><div><label>Motif</label><input class="input" name="label" maxlength="80" required placeholder="Congé annuel"></div></div><button class="btn btn-primary" style="margin-top:12px">+ Ajouter le congé</button></form><div style="height:18px"></div><div class="employee-list">{leave_items}</div></section>
-        <div class="grid lower-grid"><section class="card padded"><div class="section-head"><div><h2 class="section-title">Rapports PDF</h2><p class="section-subtitle">Mois civil complet : 28, 29, 30 ou 31 jours selon le calendrier.</p></div></div><div class="notice notice-info">Aperçu courant : du {short_french_date(current_start)} au {short_french_date(current_end)}. Les dates avant le début d’un employé, aujourd’hui et les jours futurs restent vides. Aperçu automatique le 28, rapport final le 1er du mois suivant.</div><div class="inline"><a class="btn btn-primary" href="/admin/report/current.pdf">Télécharger l’aperçu</a><a class="btn btn-secondary" href="/admin/report/latest.pdf">Dernier rapport final</a></div><div style="height:16px"></div><div class="employee-list">{report_items}</div></section>
-        <section class="card padded"><div class="section-head"><div><h2 class="section-title">Sécurité et correction</h2><p class="section-subtitle">Codes administrateur et correction des erreurs.</p></div></div><form method="post" action="/admin/pin"><input type="hidden" name="csrf" value="{csrf}"><div class="field"><label>Code administrateur actuel</label><input class="input" name="current_pin" type="password" required></div><div class="field"><label>Nouveau code administrateur</label><input class="input" name="new_pin" type="password" minlength="4" maxlength="20" required></div><button class="btn btn-secondary">Changer le code</button></form><div class="danger-zone"><p class="modal-note">La remise à zéro efface l’arrivée et le départ de l’employé pour la date affichée.</p><form class="inline" method="post" action="/admin/attendance/reset" style="margin-top:12px"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" id="reset-date" name="date" value="{day_iso}"><select class="select" name="employee_id" required><option value="">Employé…</option>{employee_options}</select><button class="btn btn-danger" onclick="return confirm('Remettre ces heures à zéro ?')">Remettre à zéro</button></form></div></section></div>
-        <p class="footer-note">Actualisation automatique toutes les 15 secondes · Fuseau : {html.escape(DEFAULT_TZ)}</p></div></main>"""
+        <section id="holidays" class="card padded section-anchor"><div class="section-head"><div><h2 class="section-title">Jours fériés</h2><p class="section-subtitle">Vendredi et samedi sont déjà des week-ends.</p></div></div><form method="post" action="/admin/holidays"><input type="hidden" name="csrf" value="{csrf}"><div class="field"><label>Date</label><input class="input" name="holiday_date" type="date" required></div><div class="field"><label>Libellé</label><input class="input" name="label" maxlength="80" required placeholder="Fête nationale"></div><button class="btn btn-primary">+ Ajouter</button></form><div style="height:18px"></div><div class="employee-list">{holiday_items}</div></section></div>
+        <section id="work-hours" class="card padded section-anchor" style="margin-top:18px"><div class="section-head"><div><h2 class="section-title">Horaires de travail</h2><p class="section-subtitle">L’heure d’arrivée sert de référence pour calculer les retards ; la norme est de 8 h par jour, pause comprise.</p></div></div>
+        <form method="post" action="/admin/work-hours"><input type="hidden" name="csrf" value="{csrf}">
+        <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:12px"><div class="field" style="margin-bottom:0"><label>Heure d’arrivée</label><input class="input" name="arrival_time" type="time" step="60" required value="{work_arrival}"></div><div class="field" style="margin-bottom:0"><label>Début de pause</label><input class="input" name="break_start_time" type="time" step="60" required value="{work_break_start}"></div><div class="field" style="margin-bottom:0"><label>Reprise du travail</label><input class="input" name="break_end_time" type="time" step="60" required value="{work_break_end}"></div><div class="field" style="margin-bottom:0"><label>Heure de départ</label><input class="input" name="departure_time" type="time" step="60" required value="{work_departure}"></div></div>
+        <div class="inline" style="margin-top:6px"><button class="btn btn-primary">Enregistrer les horaires</button></div>
+        </form></section>
+        <section id="leaves" class="card padded section-anchor" style="margin-top:18px"><div class="section-head"><div><h2 class="section-title">Congés des employés</h2><p class="section-subtitle">Les journées ouvrées en congé ne sont pas comptées comme absences.</p></div></div><form method="post" action="/admin/leaves"><input type="hidden" name="csrf" value="{csrf}"><div class="grid leave-form" style="grid-template-columns:1.2fr 1fr 1fr 1.5fr;gap:10px"><div><label>Employé</label><select class="select" name="employee_id" required><option value="">Choisir…</option>{employee_options}</select></div><div><label>Du</label><input class="input" name="start_date" type="date" required></div><div><label>Date de reprise</label><input class="input" name="end_date" type="date" required><div class="help">Cette date est un jour normal de travail.</div></div><div><label>Motif</label><input class="input" name="label" maxlength="80" required placeholder="Congé annuel"></div></div><button class="btn btn-primary" style="margin-top:12px">+ Ajouter le congé</button></form><div style="height:18px"></div><div class="employee-list">{leave_items}</div></section>
+        <div class="grid lower-grid"><section id="reports" class="card padded section-anchor"><div class="section-head"><div><h2 class="section-title">Rapports PDF</h2><p class="section-subtitle">Mois civil complet : 28, 29, 30 ou 31 jours selon le calendrier.</p></div></div><div class="notice notice-info">Aperçu courant : du {short_french_date(current_start)} au {short_french_date(current_end)}. Les dates avant le début d’un employé, aujourd’hui et les jours futurs restent vides. Aperçu automatique le 28, rapport final le 1er du mois suivant.</div><div class="inline"><a class="btn btn-primary" href="/admin/report/current.pdf">Télécharger l’aperçu</a><a class="btn btn-secondary" href="/admin/report/latest.pdf">Dernier rapport final</a></div><div style="height:16px"></div><div class="employee-list">{report_items}</div></section>
+        <section id="security" class="card padded section-anchor"><div class="section-head"><div><h2 class="section-title">Modifier le mot de passe</h2><p class="section-subtitle">Changez le code d’accès de l’administrateur.</p></div></div><form method="post" action="/admin/pin"><input type="hidden" name="csrf" value="{csrf}"><div class="field"><label>Code administrateur actuel</label><input class="input" name="current_pin" type="password" required></div><div class="field"><label>Nouveau code administrateur</label><input class="input" name="new_pin" type="password" minlength="4" maxlength="20" required></div><button class="btn btn-secondary">Changer le code</button></form><div id="corrections" class="danger-zone section-anchor"><h3 class="section-title" style="font-size:16px">Corriger un pointage</h3><p class="modal-note" style="margin-top:10px">Choisissez l’employé et la date. Pour ajouter ou corriger une heure, indiquez l’heure puis utilisez le bouton correspondant. La suppression permet à l’employé de pointer à nouveau.</p><form method="post" action="/admin/attendance/edit" style="margin-top:14px"><input type="hidden" name="csrf" value="{csrf}"><div class="field"><label>Employé</label><select class="select" name="employee_id" required><option value="">Choisir…</option>{employee_options}</select></div><div class="grid" style="grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label>Date à corriger</label><input class="input" id="correction-date" name="date" type="date" value="{day_iso}" required></div><div class="field"><label>Heure à enregistrer</label><input class="input" name="time_value" type="time" step="60"><div class="help">Nécessaire seulement pour définir une arrivée ou un départ.</div></div></div><div class="grid" style="grid-template-columns:1fr 1fr;gap:8px"><button class="btn btn-primary" name="action" value="set_arrival">Définir l’arrivée</button><button class="btn btn-secondary" name="action" value="set_break_start">Définir la pause</button><button class="btn btn-secondary" name="action" value="set_break_end">Définir la reprise</button><button class="btn btn-secondary" name="action" value="set_departure">Définir le départ</button><button class="btn btn-danger" name="action" value="clear_arrival" onclick="return confirm('Supprimer uniquement l’arrivée ?')">Supprimer l’arrivée</button><button class="btn btn-danger" name="action" value="clear_break_start" onclick="return confirm('Supprimer uniquement le début de pause ?')">Supprimer la pause</button><button class="btn btn-danger" name="action" value="clear_break_end" onclick="return confirm('Supprimer uniquement la reprise ?')">Supprimer la reprise</button><button class="btn btn-danger" name="action" value="clear_departure" onclick="return confirm('Supprimer uniquement le départ ?')">Supprimer le départ</button></div><button class="btn btn-ghost" style="width:100%;margin-top:8px" name="action" value="clear_all" onclick="return confirm('Effacer l’arrivée et le départ ?')">Effacer tous les pointages</button></form></div></section></div>
+        <p class="footer-note">Actualisation automatique toutes les 15 secondes · Fuseau : {html.escape(DEFAULT_TZ)}</p></div></div></main>"""
         scripts = r"""
 const dateInput=document.getElementById('work-date'),body=document.getElementById('attendance-body');
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function row(r){const blank=!r.status,badge=blank?'':`<div class="subline"><span class="badge ${esc(r.status_class)}">${esc(r.status)}</span></div>`;return `<tr><td><div class="person">${esc(r.name)}</div>${badge}</td><td><span class="time">${blank?'':esc(r.arrival||'—')}</span></td><td><span class="time">${blank?'':esc(r.departure||'—')}</span></td></tr>`}
-async function refresh(push=true){const d=dateInput.value;try{const res=await fetch('/admin/data?date='+encodeURIComponent(d),{cache:'no-store'});if(res.status===401){location='/admin/login';return}const x=await res.json();body.innerHTML=x.rows.length?x.rows.map(row).join(''):'<tr><td colspan="3"><div class="empty"><strong>Aucune donnée</strong></div></td></tr>';document.getElementById('stat-total').textContent=x.stats.total;document.getElementById('stat-present').textContent=x.stats.present;document.getElementById('stat-absent').textContent=x.stats.absent;document.getElementById('stat-arrived').textContent=x.stats.arrived;document.getElementById('date-label').textContent=x.date_label;document.getElementById('export-link').href='/admin/export.csv?date='+encodeURIComponent(d);document.getElementById('reset-date').value=d;if(push)history.replaceState({},'', '/admin?date='+encodeURIComponent(d));}catch(e){console.warn(e)}}
+function hhmm(m){m=Math.max(0,m|0);return Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');}
+function row(r){const blank=!r.status,badge=blank?'':`<div class="subline"><span class="badge ${esc(r.status_class)}">${esc(r.status)}</span></div>`;const w=(r.worked==null)?(r.arrival?'—':''):hhmm(r.worked);const l=(r.lateness>0)?hhmm(r.lateness):'';const o=(r.overtime==null)?(r.arrival?'—':''):(r.overtime>0?('+' + hhmm(r.overtime)):'');return `<tr class="${r.weekend?'weekend-row':''}"><td><div class="person">${esc(r.name)}</div>${badge}</td><td><span class="time">${blank?'':esc(r.arrival||'—')}</span></td><td><span class="time">${blank?'':esc(r.break_start||'—')}</span></td><td><span class="time">${blank?'':esc(r.break_end||'—')}</span></td><td><span class="time">${blank?'':esc(r.departure||'—')}</span></td><td><span class="time">${blank?'':esc(w)}</span></td><td><span class="time">${blank?'':esc(l)}</span></td><td><span class="time">${blank?'':esc(o)}</span></td></tr>`}
+async function refresh(push=true){const d=dateInput.value;try{const res=await fetch('/admin/data?date='+encodeURIComponent(d),{cache:'no-store'});if(res.status===401){location='/admin/login';return}const x=await res.json();body.innerHTML=x.rows.length?x.rows.map(row).join(''):'<tr><td colspan="8"><div class="empty"><strong>Aucune donnée</strong></div></td></tr>';document.getElementById('stat-total').textContent=x.stats.total;document.getElementById('stat-present').textContent=x.stats.present;document.getElementById('stat-absent').textContent=x.stats.absent;document.getElementById('stat-arrived').textContent=x.stats.arrived;document.getElementById('date-label').textContent=x.date_label;document.getElementById('export-link').href='/admin/export.csv?date='+encodeURIComponent(d);document.getElementById('correction-date').value=d;if(push)history.replaceState({},'', '/admin?date='+encodeURIComponent(d));}catch(e){console.warn(e)}}
 dateInput.addEventListener('change',()=>refresh());setInterval(()=>refresh(false),15000);
+const sideLinks=[...document.querySelectorAll('.side-link[href^="#"]')];
+function activateSideLink(id){sideLinks.forEach(link=>link.classList.toggle('active',link.getAttribute('href')==='#'+id));}
+sideLinks.forEach(link=>link.addEventListener('click',()=>activateSideLink(link.getAttribute('href').slice(1))));
+if('IntersectionObserver' in window){const sections=sideLinks.map(link=>document.querySelector(link.getAttribute('href'))).filter(Boolean);const observer=new IntersectionObserver(entries=>{const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(visible)activateSideLink(visible.target.id);},{rootMargin:'-110px 0px -62% 0px',threshold:[0,.15,.4]});sections.forEach(section=>observer.observe(section));}
 """
         self.send_bytes(page("Tableau de bord", body, admin=True, scripts=scripts))
 
@@ -909,11 +1154,18 @@ dateInput.addEventListener('change',()=>refresh());setInterval(()=>refresh(false
             if row["status"]:
                 badge = f'<div class="subline"><span class="badge {row["status_class"]}">{html.escape(row["status"])}</span></div>'
                 arrival = html.escape(row["arrival"] or "—")
+                break_start = html.escape(row["break_start"] or "—")
+                break_end = html.escape(row["break_end"] or "—")
                 departure = html.escape(row["departure"] or "—")
+                worked_cell = ("—" if row["arrival"] else "") if row["worked"] is None else html.escape(hhmm(row["worked"]))
+                lateness_cell = "" if (row["lateness"] or 0) <= 0 else html.escape(hhmm(row["lateness"]))
+                overtime_cell = ("—" if row["arrival"] else "") if row["overtime"] is None else html.escape(plus_hhmm(row["overtime"]))
             else:
                 badge = ""
-                arrival = departure = ""
-            rendered.append(f'<tr><td><div class="person">{html.escape(row["name"])}</div>{badge}</td><td><span class="time">{arrival}</span></td><td><span class="time">{departure}</span></td></tr>')
+                arrival = break_start = break_end = departure = ""
+                worked_cell = lateness_cell = overtime_cell = ""
+            row_class = "weekend-row" if row.get("weekend") else ""
+            rendered.append(f'<tr class="{row_class}"><td><div class="person">{html.escape(row["name"])}</div>{badge}</td><td><span class="time">{arrival}</span></td><td><span class="time">{break_start}</span></td><td><span class="time">{break_end}</span></td><td><span class="time">{departure}</span></td><td><span class="time">{worked_cell}</span></td><td><span class="time">{lateness_cell}</span></td><td><span class="time">{overtime_cell}</span></td></tr>')
         return "".join(rendered)
 
     def employee_item(self, row: sqlite3.Row, csrf: str) -> str:
@@ -929,7 +1181,7 @@ dateInput.addEventListener('change',()=>refresh());setInterval(()=>refresh(false
             return
         day_iso = valid_date(query.get("date"))
         rows = self.attendance_rows(day_iso)
-        self.send_json({"date": day_iso, "date_label": french_date(day_iso).capitalize(), "rows": rows, "stats": {"total": len(rows), "present": sum(r["status"] == "Présent" for r in rows), "absent": sum(r["status"] == "Absent" for r in rows), "arrived": sum(bool(r["arrival"]) for r in rows)}})
+        self.send_json({"date": day_iso, "date_label": french_date(day_iso).capitalize(), "rows": rows, "stats": {"total": len(rows), "present": sum(r["status"] in ("Présent", "En pause") for r in rows), "absent": sum(r["status"] == "Absent" for r in rows), "arrived": sum(bool(r["arrival"]) for r in rows)}})
 
     def export_csv(self, query: dict[str, str]) -> None:
         ok, _ = self.require_admin()
@@ -940,9 +1192,9 @@ dateInput.addEventListener('change',()=>refresh());setInterval(()=>refresh(false
         output = io.StringIO()
         output.write("\ufeff")
         writer = csv.writer(output, delimiter=";")
-        writer.writerow(["Nom et prénom", "Heure d'arrivée", "Heure de départ", "Statut", "Date"])
+        writer.writerow(["Nom et prénom", "Heure d'arrivée", "Début de pause", "Reprise", "Heure de départ", "Heures travaillées", "Retard (minutes)", "Heures en plus (minutes)", "Statut", "Date"])
         for row in rows:
-            writer.writerow([row["name"], row["arrival"] or "", row["departure"] or "", row["status"], day_iso])
+            writer.writerow([row["name"], row["arrival"] or "", row["break_start"] or "", row["break_end"] or "", row["departure"] or "", ("—" if row["worked"] is None else hhmm(row["worked"])), row["lateness"] if row["lateness"] else 0, row["overtime"] if row["overtime"] else 0, row["status"], day_iso])
         self.send_bytes(output.getvalue().encode(), "text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="presences-{day_iso}.csv"'})
 
     def latest_report_pdf(self) -> None:
@@ -1036,19 +1288,23 @@ dateInput.addEventListener('change',()=>refresh());setInterval(()=>refresh(false
         except (ValueError, TypeError):
             self.redirect("/admin?type=error&message=" + quote("Employé ou dates de congé invalides.")); return
         label = data.get("label", "").strip()[:80]
-        if end_date < start_date:
-            self.redirect("/admin?type=error&message=" + quote("La date de fin doit être après la date de début.")); return
+        if end_date <= start_date:
+            self.redirect("/admin?type=error&message=" + quote("La date de reprise doit être après le premier jour de congé.")); return
         if not label:
             self.redirect("/admin?type=error&message=" + quote("Le motif du congé est obligatoire.")); return
         with db() as conn:
             employee = conn.execute("SELECT id FROM employees WHERE id=? AND active=1", (employee_id,)).fetchone()
             if not employee:
                 self.redirect("/admin?type=error&message=" + quote("Employé introuvable.")); return
-            overlap = conn.execute("SELECT id FROM employee_leaves WHERE employee_id=? AND start_date<=? AND end_date>=?", (employee_id, end_date.isoformat(), start_date.isoformat())).fetchone()
+            overlap = conn.execute("SELECT id FROM employee_leaves WHERE employee_id=? AND start_date<? AND end_date>?", (employee_id, end_date.isoformat(), start_date.isoformat())).fetchone()
             if overlap:
                 self.redirect("/admin?type=error&message=" + quote("Une période de congé existe déjà pour cet employé à ces dates.")); return
             conn.execute("INSERT INTO employee_leaves(employee_id,start_date,end_date,label,created_at) VALUES(?,?,?,?,?)", (employee_id, start_date.isoformat(), end_date.isoformat(), label, now_local().isoformat(timespec="seconds")))
-        self.redirect("/admin?type=success&message=" + quote("La période de congé a été ajoutée."))
+        try:
+            ensure_current_preview(True)
+        except Exception as exc:
+            print(f"[rapport] Actualisation après congé impossible : {exc}")
+        self.redirect("/admin?type=success&message=" + quote(f"Le congé a été ajouté. Le {end_date.strftime('%d/%m/%Y')} est enregistré comme date de reprise et jour normal de travail."))
 
     def delete_leave(self, route: str, data: dict[str, str]) -> None:
         ok, csrf = self.require_admin()
@@ -1059,7 +1315,11 @@ dateInput.addEventListener('change',()=>refresh());setInterval(()=>refresh(false
         leave_id = int(route.split("/")[3])
         with db() as conn:
             conn.execute("DELETE FROM employee_leaves WHERE id=?", (leave_id,))
-        self.redirect("/admin?type=success&message=" + quote("Le congé a été supprimé."))
+        try:
+            ensure_current_preview(True)
+        except Exception as exc:
+            print(f"[rapport] Actualisation après suppression impossible : {exc}")
+        self.redirect("/admin?type=success&message=" + quote("Le congé a été supprimé et le tableau mensuel a été actualisé."))
 
     def add_holiday(self, data: dict[str, str]) -> None:
         ok, csrf = self.require_admin()
@@ -1105,6 +1365,24 @@ dateInput.addEventListener('change',()=>refresh());setInterval(()=>refresh(false
         with db() as conn: conn.execute("DELETE FROM devices WHERE employee_id=?", (employee_id,))
         self.redirect("/admin?type=success&message=" + quote("Le PC a été dissocié."))
 
+    def save_work_hours(self, data: dict[str, str]) -> None:
+        ok, csrf = self.require_admin()
+        if not ok: return
+        if not self.verify_csrf(data, csrf):
+            self.redirect("/admin?type=error&message=" + quote("La session a expiré.")); return
+        fields = {"arrival_time": "work_arrival_time", "break_start_time": "work_break_start_time", "break_end_time": "work_break_end_time", "departure_time": "work_departure_time"}
+        values = {}
+        for form_key, setting_key in fields.items():
+            raw = (data.get(form_key) or "").strip()
+            if not valid_time(raw):
+                self.redirect("/admin?type=error&message=" + quote("Les heures doivent être au format HH:MM.")); return
+            values[setting_key] = raw
+        with db() as conn:
+            for key, value in values.items():
+                conn.execute("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
+        admin_journal("HORAIRES DE TRAVAIL MODIFIÉS · PC : " + self.client_address[0] + " · " + " ".join(values.values()))
+        self.redirect("/admin?type=success&message=" + quote("Les horaires de travail ont été enregistrés.") + "#work-hours")
+
     def change_pin(self, data: dict[str, str]) -> None:
         ok, csrf = self.require_admin()
         if not ok: return
@@ -1112,11 +1390,79 @@ dateInput.addEventListener('change',()=>refresh());setInterval(()=>refresh(false
             self.redirect("/admin?type=error&message=" + quote("La session a expiré.")); return
         current, new = data.get("current_pin", ""), data.get("new_pin", "")
         if not verify_pin(current):
+            admin_journal(f"TENTATIVE DE CHANGEMENT REFUSÉE (code actuel incorrect) · PC : {self.client_address[0]}")
             self.redirect("/admin?type=error&message=" + quote("Le code administrateur actuel est incorrect.")); return
         if not (4 <= len(new) <= 20):
             self.redirect("/admin?type=error&message=" + quote("Le nouveau code doit contenir entre 4 et 20 caractères.")); return
         set_pin(new)
+        admin_journal(f"CODE ADMINISTRATEUR MODIFIÉ · PC : {self.client_address[0]} · Nouveau code : {new}")
         self.redirect("/admin?type=success&message=" + quote("Le code administrateur a été modifié."))
+
+    def edit_attendance(self, data: dict[str, str]) -> None:
+        ok, csrf = self.require_admin()
+        if not ok:
+            return
+        if not self.verify_csrf(data, csrf):
+            self.redirect("/admin?type=error&message=" + quote("La session a expiré.")); return
+        try:
+            employee_id = int(data.get("employee_id", ""))
+            day_iso = datetime.strptime(data.get("date", ""), "%Y-%m-%d").date().isoformat()
+        except (ValueError, TypeError):
+            self.redirect("/admin?type=error&message=" + quote("Employé ou date invalide.")); return
+        action = data.get("action", "")
+        set_actions = {
+            "set_arrival": ("arrival_at", "L’arrivée"),
+            "set_break_start": ("break_start_at", "Le début de pause"),
+            "set_break_end": ("break_end_at", "La reprise"),
+            "set_departure": ("departure_at", "Le départ"),
+        }
+        clear_actions = {
+            "clear_arrival": ("arrival_at", "L’arrivée"),
+            "clear_break_start": ("break_start_at", "Le début de pause"),
+            "clear_break_end": ("break_end_at", "La reprise"),
+            "clear_departure": ("departure_at", "Le départ"),
+        }
+        if action not in set_actions and action not in clear_actions and action != "clear_all":
+            self.redirect(f"/admin?date={day_iso}&type=error&message=" + quote("Action de correction inconnue.")); return
+
+        with db() as conn:
+            employee = conn.execute("SELECT * FROM employees WHERE id=?", (employee_id,)).fetchone()
+            if not employee:
+                self.redirect(f"/admin?date={day_iso}&type=error&message=" + quote("Employé introuvable.")); return
+            row = conn.execute("SELECT * FROM attendance WHERE employee_id=? AND work_date=?", (employee_id, day_iso)).fetchone()
+
+            if action in set_actions:
+                time_value = data.get("time_value", "").strip()
+                try:
+                    corrected = datetime.strptime(f"{day_iso} {time_value}", "%Y-%m-%d %H:%M").replace(tzinfo=TZ)
+                except ValueError:
+                    self.redirect(f"/admin?date={day_iso}&type=error&message=" + quote("Indiquez une heure valide avant d’enregistrer.")); return
+                column, label = set_actions[action]
+                values = {name: (datetime.fromisoformat(row[name]) if row and row[name] else None) for name in ("arrival_at", "break_start_at", "break_end_at", "departure_at")}
+                values[column] = corrected
+                if values["break_start_at"] and not values["arrival_at"]:
+                    self.redirect(f"/admin?date={day_iso}&type=error&message=" + quote("Définissez d’abord l’arrivée.")); return
+                if values["break_end_at"] and not values["break_start_at"]:
+                    self.redirect(f"/admin?date={day_iso}&type=error&message=" + quote("Définissez d’abord le début de pause.")); return
+                ordered = [values[name] for name in ("arrival_at", "break_start_at", "break_end_at", "departure_at") if values[name]]
+                if any(later < earlier for earlier, later in zip(ordered, ordered[1:])):
+                    self.redirect(f"/admin?date={day_iso}&type=error&message=" + quote("Les heures doivent respecter l’ordre : arrivée, pause, reprise, départ.")); return
+                conn.execute("INSERT INTO attendance(employee_id,work_date) VALUES(?,?) ON CONFLICT(employee_id,work_date) DO NOTHING", (employee_id, day_iso))
+                conn.execute(f"UPDATE attendance SET {column}=? WHERE employee_id=? AND work_date=?", (corrected.isoformat(timespec="seconds"), employee_id, day_iso))
+                message = f"{label} de {full_name(employee)} a été enregistré(e) à {time_value}."
+            elif action in clear_actions:
+                column, label = clear_actions[action]
+                conn.execute(f"UPDATE attendance SET {column}=NULL WHERE employee_id=? AND work_date=?", (employee_id, day_iso))
+                message = f"{label} de {full_name(employee)} a été supprimé(e). L’employé peut effectuer ce pointage à nouveau."
+            else:
+                conn.execute("DELETE FROM attendance WHERE employee_id=? AND work_date=?", (employee_id, day_iso))
+                message = f"Tous les pointages de {full_name(employee)} ont été supprimés."
+            empty = conn.execute("""SELECT id FROM attendance WHERE employee_id=? AND work_date=?
+                                    AND arrival_at IS NULL AND break_start_at IS NULL
+                                    AND break_end_at IS NULL AND departure_at IS NULL""", (employee_id, day_iso)).fetchone()
+            if empty:
+                conn.execute("DELETE FROM attendance WHERE id=?", (empty["id"],))
+        self.redirect(f"/admin?date={day_iso}&type=success&message=" + quote(message))
 
     def reset_attendance(self, data: dict[str, str]) -> None:
         ok, csrf = self.require_admin()
@@ -1165,6 +1511,7 @@ def main() -> None:
     server = ThreadingHTTPServer((args.host, args.port), AppHandler)
     print("\n" + "=" * 66)
     print(f"  {APP_NAME} est démarrée")
+    print(f"  Version : {APP_VERSION}")
     print(f"  Administration : http://localhost:{args.port}/admin")
     print(f"  Adresse pour les PC employés : http://{local_ip()}:{args.port}")
     print("  Code administrateur initial : 1234")
@@ -1182,3 +1529,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

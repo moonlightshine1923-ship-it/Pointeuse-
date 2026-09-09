@@ -21,6 +21,8 @@ L’adresse `192.168…` est celle à utiliser sur les autres PC.
 
 ## B. Première configuration administrateur
 
+L’administration utilise un menu à gauche donnant accès à la vue d’ensemble, aux employés, congés, jours fériés, rapports PDF, corrections de pointage et changement du mot de passe.
+
 1. Sur le serveur, ouvrez `http://localhost:8000/admin`.
 2. Saisissez le code initial `1234`.
 3. Dans **Sécurité et correction**, changez immédiatement ce code.
@@ -111,13 +113,7 @@ Le tableau couvre toujours le mois entier, du 1er au dernier jour réel : 28 ou 
 
 Exemple : l’aperçu d’août contient les lignes du 1er au 31 août. Le rapport final d’août est créé le 1er septembre. Les dates antérieures au début de l’employé, la journée actuelle sans pointage et les dates futures restent vides.
 
-Le rapport indique à la fin du tableau de chaque employé :
-
-- le total des jours travaillés ;
-- le total des heures travaillées ;
-- le total des jours d’absence ;
-- le total des heures d’absence, sur une base de 7 heures par jour ;
-- les jours de congé, week-ends et jours fériés.
+Chaque page employé utilise quatre colonnes : **Nom et prénom**, **Date du jour**, **Heure d’arrivée** et **Heure de sortie**. Une ligne au bas du tableau indique le total des journées travaillées et le total des jours d’absence.
 
 Dans **Rapports PDF**, vous pouvez télécharger l’aperçu du mois courant, télécharger le dernier rapport final et ouvrir les anciens fichiers. Du 28 à la fin du mois, l’aperçu est actualisé. Le 1er, le mois précédent est finalisé.
 
@@ -143,9 +139,16 @@ Le cookie du navigateur a probablement été supprimé. Recommencez l’étape D
 
 Dans l’administration, utilisez **Changer un code employé**. Les codes ne sont jamais affichés en clair.
 
-### Une heure est incorrecte
+### Une heure est incorrecte ou le PC de l’employé est en panne
 
-Sélectionnez la date dans le tableau, choisissez l’employé dans **Sécurité et correction**, puis cliquez sur **Remettre à zéro**. L’employé pourra pointer à nouveau.
+Dans **Sécurité et correction**, ouvrez **Corriger un pointage** :
+
+1. choisissez l’employé et la date ;
+2. pour ajouter ou modifier une heure, indiquez l’heure puis cliquez sur **Définir l’arrivée** ou **Définir le départ** ;
+3. pour autoriser l’employé à recommencer, cliquez sur **Supprimer l’arrivée** ou **Supprimer le départ** ;
+4. utilisez **Effacer les deux heures** uniquement si toute la journée doit être repointée.
+
+Exemple : si l’employé a cliqué sur Départ à midi par erreur, utilisez **Supprimer le départ**. Son bouton de départ sera de nouveau disponible sur son PC.
 
 ### L’adresse du serveur change
 
