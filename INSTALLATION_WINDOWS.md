@@ -113,7 +113,7 @@ Le tableau couvre toujours le mois entier, du 1er au dernier jour réel : 28 ou 
 
 Exemple : l’aperçu d’août contient les lignes du 1er au 31 août. Le rapport final d’août est créé le 1er septembre. Les dates antérieures au début de l’employé, la journée actuelle sans pointage et les dates futures restent vides.
 
-Chaque page employé utilise les colonnes **Nom et prénom**, **Date du jour**, **Heure d’arrivée**, **Début de pause**, **Reprise**, **Heure de sortie** et **Avance / retard**. La dernière colonne compare l’arrivée à l’heure prévue : `+` en vert si l’employé est en avance, `-` en rouge s’il est en retard. Une ligne au bas du tableau indique le total des journées travaillées et le total des jours d’absence.
+Chaque page employé utilise quatre colonnes : **Nom et prénom**, **Date du jour**, **Heure d’arrivée** et **Heure de sortie**. Une ligne au bas du tableau indique le total des journées travaillées et le total des jours d’absence.
 
 Dans **Rapports PDF**, vous pouvez télécharger l’aperçu du mois courant, télécharger le dernier rapport final et ouvrir les anciens fichiers. Du 28 à la fin du mois, l’aperçu est actualisé. Le 1er, le mois précédent est finalisé.
 

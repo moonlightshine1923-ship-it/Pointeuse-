@@ -1,0 +1,4 @@
+JOURNAL DU CODE ADMINISTRATEUR
+(date, heure, PC utilisé, nouveau code).
+============================================================
+opa2026
